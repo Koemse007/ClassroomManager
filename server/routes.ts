@@ -250,7 +250,6 @@ export async function registerRoutes(
       }
       
       await storage.removeMemberFromGroup(req.params.id, req.params.memberId);
-      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
       res.json({ message: "Student removed" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
