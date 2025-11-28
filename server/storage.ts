@@ -33,15 +33,15 @@ db.exec(`
     name TEXT NOT NULL,
     owner_id TEXT NOT NULL,
     join_code TEXT NOT NULL UNIQUE,
-    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS group_members (
     id TEXT PRIMARY KEY,
     group_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(group_id, user_id)
   );
 
@@ -52,7 +52,7 @@ db.exec(`
     description TEXT NOT NULL,
     due_date TEXT NOT NULL,
     file_url TEXT,
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS submissions (
@@ -63,8 +63,8 @@ db.exec(`
     file_url TEXT,
     submitted_at TEXT NOT NULL,
     score INTEGER,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(task_id, student_id)
   );
 `);
