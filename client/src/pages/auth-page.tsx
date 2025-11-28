@@ -48,18 +48,30 @@ export default function AuthPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginCredentials) => {
-      const response = await apiRequest("POST", "/api/auth/login", data);
-      return response;
+      try {
+        const response = await apiRequest<{ user: any; token: string }>(
+          "POST",
+          "/api/auth/login",
+          data
+        );
+        return response;
+      } catch (err) {
+        console.error("Login error:", err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
-      login(data.user, data.token);
-      toast({
-        title: "Welcome back!",
-        description: `Signed in as ${data.user.name}`,
-      });
-      setLocation("/dashboard");
+      if (data?.user && data?.token) {
+        login(data.user, data.token);
+        toast({
+          title: "Welcome back!",
+          description: `Signed in as ${data.user.name}`,
+        });
+        setLocation("/dashboard");
+      }
     },
     onError: (error: Error) => {
+      console.error("Login mutation error:", error);
       toast({
         title: "Login failed",
         description: error.message || "Invalid email or password",
@@ -70,18 +82,30 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      const response = await apiRequest("POST", "/api/auth/register", data);
-      return response;
+      try {
+        const response = await apiRequest<{ user: Omit<typeof data, 'password'>; token: string }>(
+          "POST",
+          "/api/auth/register",
+          data
+        );
+        return response;
+      } catch (err) {
+        console.error("Registration error:", err);
+        throw err;
+      }
     },
     onSuccess: (data) => {
-      login(data.user, data.token);
-      toast({
-        title: "Account created!",
-        description: `Welcome to ClassRoom, ${data.user.name}`,
-      });
-      setLocation("/dashboard");
+      if (data?.user && data?.token) {
+        login(data.user, data.token);
+        toast({
+          title: "Account created!",
+          description: `Welcome to ClassRoom, ${data.user.name}`,
+        });
+        setLocation("/dashboard");
+      }
     },
     onError: (error: Error) => {
+      console.error("Registration mutation error:", error);
       toast({
         title: "Registration failed",
         description: error.message || "Could not create account",
