@@ -18,6 +18,7 @@ import TaskSubmission from "@/pages/task-submission";
 import SubmissionReview from "@/pages/submission-review";
 import AllSubmissions from "@/pages/all-submissions";
 import AnalyticsDashboard from "@/pages/analytics-dashboard";
+import AllTasks from "@/pages/all-tasks";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -162,6 +163,13 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <AnalyticsDashboard />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/tasks">
+        <ProtectedRoute>
+          <AppLayout>
+            <AllTasks />
           </AppLayout>
         </ProtectedRoute>
       </Route>

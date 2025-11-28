@@ -360,6 +360,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/tasks/all", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      if (req.user?.role !== "student") {
+        return res.status(403).json({ message: "Students only" });
+      }
+      const tasks = await storage.getAllTasksForStudent(req.user!.id);
+      res.json(tasks);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.get("/api/tasks/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const task = await storage.getTaskById(req.params.id);

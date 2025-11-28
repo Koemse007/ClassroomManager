@@ -102,11 +102,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  // Filter groups based on search query
-  const filteredGroups = groups?.filter((group) =>
-    group.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
-
   return (
     <div className="p-6 lg:p-8 space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -443,6 +443,27 @@ export class SQLiteStorage implements IStorage {
     return stmt.all(studentId, studentId) as TaskWithSubmissionStatus[];
   }
 
+  async getAllTasksForStudent(studentId: string): Promise<any[]> {
+    const stmt = db.prepare(`
+      SELECT 
+        t.id, t.group_id as groupId, t.title, t.description, t.due_date as dueDate, t.file_url as fileUrl,
+        g.name as groupName,
+        CASE 
+          WHEN s.score IS NOT NULL THEN 'graded'
+          WHEN s.id IS NOT NULL THEN 'submitted'
+          ELSE 'not_submitted'
+        END as submissionStatus,
+        s.score
+      FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id AND s.student_id = ?
+      WHERE gm.user_id = ?
+      ORDER BY t.due_date ASC
+    `);
+    return stmt.all(studentId, studentId) as any[];
+  }
+
   async getAnalyticsForTeacher(teacherId: string): Promise<{
     totalGroups: number;
     totalTasks: number;

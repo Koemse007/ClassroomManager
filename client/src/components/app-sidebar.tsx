@@ -54,6 +54,12 @@ export function AppSidebar() {
       url: "/analytics",
       icon: BarChart3,
     });
+  } else {
+    menuItems.push({
+      title: "All Tasks",
+      url: "/tasks",
+      icon: ClipboardList,
+    });
   }
 
   const getInitials = (name: string) => {
