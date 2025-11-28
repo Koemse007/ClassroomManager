@@ -27,6 +27,15 @@ export function Announcements({ groupId, isTeacher = false }: AnnouncementsProps
     enabled: !!token,
   });
 
+  const markReadMutation = useMutation({
+    mutationFn: async (announcementId: string) => {
+      return await apiRequest("POST", `/api/announcements/${announcementId}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/unread-counts"] });
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async (msg: string) => {
       return await apiRequest("POST", "/api/announcements", {
@@ -103,6 +112,11 @@ export function Announcements({ groupId, isTeacher = false }: AnnouncementsProps
             </Badge>
           )}
         </h3>
+        {announcements?.forEach((ann) => {
+          if (!isTeacher) {
+            markReadMutation.mutate(ann.id);
+          }
+        })
 
         {isLoading ? (
           <div className="space-y-3">

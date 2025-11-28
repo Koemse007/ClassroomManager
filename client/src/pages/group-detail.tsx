@@ -87,6 +87,12 @@ export default function GroupDetail() {
     enabled: !!token && !!id,
   });
 
+  const { data: unreadCounts } = useQuery<{ announcements: number; submissions: number; tasks: number }>({
+    queryKey: ["/api/unread-counts"],
+    enabled: !!token,
+    refetchInterval: 5000,
+  });
+
   const isOwner = group?.ownerId === user?.id;
 
   const deleteGroupMutation = useMutation({
@@ -291,14 +297,21 @@ export default function GroupDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Button
-            variant={showAnnouncements ? "default" : "outline"}
-            onClick={() => setShowAnnouncements(!showAnnouncements)}
-            data-testid="button-messages"
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            Messages
-          </Button>
+          <div className="relative">
+            <Button
+              variant={showAnnouncements ? "default" : "outline"}
+              onClick={() => setShowAnnouncements(!showAnnouncements)}
+              data-testid="button-messages"
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Messages
+            </Button>
+            {unreadCounts && unreadCounts.announcements > 0 && (
+              <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-xs font-bold">
+                {unreadCounts.announcements}
+              </Badge>
+            )}
+          </div>
           {isOwner ? (
             <>
               <Link href={`/groups/${id}/tasks/new`} asChild>

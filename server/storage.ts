@@ -680,6 +680,62 @@ export class SQLiteStorage implements IStorage {
     `);
     return stmt.all(groupId) as AnnouncementWithTeacher[];
   }
+
+  async markAnnouncementAsRead(announcementId: string, userId: string): Promise<void> {
+    const id = randomUUID();
+    const readAt = new Date().toISOString();
+
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO announcement_reads (id, announcement_id, user_id, read_at)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    stmt.run(id, announcementId, userId, readAt);
+  }
+
+  async getUnreadAnnouncementCount(groupId: string, userId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM announcements a
+      WHERE a.group_id = ? 
+      AND a.id NOT IN (
+        SELECT announcement_id FROM announcement_reads WHERE user_id = ?
+      )
+    `);
+
+    const result = stmt.get(groupId, userId) as { count: number };
+    return result.count;
+  }
+
+  async getUnreadSubmissionCount(teacherId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      WHERE s.task_id IN (
+        SELECT t.id FROM tasks t
+        WHERE t.group_id IN (
+          SELECT id FROM groups WHERE owner_id = ?
+        )
+      )
+      AND s.score IS NULL
+    `);
+
+    const result = stmt.get(teacherId) as { count: number };
+    return result.count;
+  }
+
+  async getUnreadTaskCount(studentId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM tasks t
+      WHERE t.group_id IN (
+        SELECT group_id FROM group_members WHERE user_id = ?
+      )
+      AND t.id NOT IN (
+        SELECT task_id FROM submissions WHERE student_id = ?
+      )
+    `);
+
+    const result = stmt.get(studentId, studentId) as { count: number };
+    return result.count;
+  }
 }
 
 export const storage = new SQLiteStorage();

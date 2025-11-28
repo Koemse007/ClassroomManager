@@ -655,5 +655,41 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/announcements/:announcementId/read", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { announcementId } = req.params;
+      await storage.markAnnouncementAsRead(announcementId, req.user!.id);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/unread-counts", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const isTeacher = req.user!.role === "teacher";
+      let announcements = 0;
+      let submissions = 0;
+      let tasks = 0;
+
+      if (isTeacher) {
+        submissions = await storage.getUnreadSubmissionCount(req.user!.id);
+      } else {
+        tasks = await storage.getUnreadTaskCount(req.user!.id);
+      }
+
+      // Count unread announcements across all groups user is member of
+      const groups = await storage.getGroupsForUser(req.user!.id, req.user!.role);
+      for (const group of groups) {
+        const count = await storage.getUnreadAnnouncementCount(group.id, req.user!.id);
+        announcements += count;
+      }
+
+      res.json({ announcements, submissions, tasks });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }
