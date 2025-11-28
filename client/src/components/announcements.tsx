@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,6 +66,14 @@ export function Announcements({ groupId, isTeacher = false }: AnnouncementsProps
     }
   };
 
+  useEffect(() => {
+    if (announcements && announcements.length > 0 && !isTeacher) {
+      announcements.forEach((ann) => {
+        markReadMutation.mutate(ann.id);
+      });
+    }
+  }, [announcements, isTeacher, markReadMutation]);
+
   return (
     <div className="space-y-6">
       {isTeacher && (
@@ -112,12 +120,6 @@ export function Announcements({ groupId, isTeacher = false }: AnnouncementsProps
             </Badge>
           )}
         </h3>
-        {announcements?.forEach((ann) => {
-          if (!isTeacher) {
-            markReadMutation.mutate(ann.id);
-          }
-        })
-
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
