@@ -293,15 +293,16 @@ export default function TaskSubmission() {
                     <FilePreview fileUrl={submission.fileUrl} />
                     <a
                       href={submission.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                  >
-                    <Button size="sm" variant="outline" data-testid="button-download-submission">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </a>
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                    >
+                      <Button size="sm" variant="outline" data-testid="button-download-submission">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
+                    </a>
+                  </div>
                 </div>
               )}
               {!isGraded && (

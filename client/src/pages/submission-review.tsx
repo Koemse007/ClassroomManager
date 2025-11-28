@@ -23,6 +23,7 @@ import {
   Save,
 } from "lucide-react";
 import { format } from "date-fns";
+import { FilePreview } from "@/components/file-preview";
 
 interface TaskWithGroup extends Task {
   groupName: string;
@@ -303,19 +304,25 @@ function SubmissionCard({
         )}
 
         {submission.fileUrl && (
-          <a
-            href={submission.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="flex items-center gap-2 p-2 bg-muted rounded-lg hover-elevate"
-          >
+          <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
             <FileText className="h-4 w-4 text-primary" />
             <span className="text-sm flex-1 truncate">
               {submission.fileUrl.split("/").pop()}
             </span>
-            <Download className="h-4 w-4 text-muted-foreground" />
-          </a>
+            <div className="flex items-center gap-2">
+              <FilePreview fileUrl={submission.fileUrl} />
+              <a
+                href={submission.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <Button size="sm" variant="outline" data-testid="button-download-file">
+                  <Download className="h-4 w-4" />
+                </Button>
+              </a>
+            </div>
+          </div>
         )}
 
         <div className="flex items-center gap-3 pt-2">
