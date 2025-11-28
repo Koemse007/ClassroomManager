@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -121,6 +121,14 @@ export default function AuthPage() {
   const handleRegisterSubmit = (data: InsertUser) => {
     registerMutation.mutate(data);
   };
+
+  useEffect(() => {
+    if (isLogin) {
+      loginForm.reset();
+    } else {
+      registerForm.reset();
+    }
+  }, [isLogin, loginForm, registerForm]);
 
   return (
     <div className="min-h-screen bg-background flex">
