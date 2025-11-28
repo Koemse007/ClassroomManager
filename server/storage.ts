@@ -230,8 +230,11 @@ export class SQLiteStorage implements IStorage {
   }
 
   async deleteGroup(id: string): Promise<void> {
-    const stmt = db.prepare("DELETE FROM groups WHERE id = ?");
-    stmt.run(id);
+    // Set NULL for foreign keys to preserve data (SET NULL instead of CASCADE DELETE)
+    db.prepare("UPDATE announcements SET group_id = NULL WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM group_members WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM tasks WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM groups WHERE id = ?").run(id);
   }
 
   async addMemberToGroup(groupId: string, userId: string): Promise<GroupMember> {
@@ -349,8 +352,9 @@ export class SQLiteStorage implements IStorage {
   }
 
   async deleteTask(id: string): Promise<void> {
-    const stmt = db.prepare("DELETE FROM tasks WHERE id = ?");
-    stmt.run(id);
+    // Set NULL for submissions to preserve data (SET NULL instead of CASCADE DELETE)
+    db.prepare("UPDATE submissions SET task_id = NULL WHERE task_id = ?").run(id);
+    db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
   }
 
   async createSubmission(submissionData: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission> {
