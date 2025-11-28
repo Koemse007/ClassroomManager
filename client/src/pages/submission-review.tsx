@@ -399,10 +399,11 @@ function SubmissionCard({
               ) : (
                 <>
                   <Save className="h-4 w-4 mr-2" />
-                {isGraded ? "Update" : "Save"}
-              </>
-            )}
-          </Button>
+                  {isGraded ? "Update" : "Save"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
