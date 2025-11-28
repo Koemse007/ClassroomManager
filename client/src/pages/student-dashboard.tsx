@@ -121,78 +121,19 @@ export default function StudentDashboard() {
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Welcome back, {user?.name?.split(" ")[0]}</h1>
-          <p className="text-muted-foreground">View your classes and submit assignments</p>
-        </div>
-        <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-join-group">
-              <Plus className="h-4 w-4 mr-2" />
-              Join Group
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Join a Group</DialogTitle>
-              <DialogDescription>
-                Enter the 6-character join code provided by your teacher.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Label htmlFor="join-code">Join Code</Label>
-              <Input
-                id="join-code"
-                placeholder="e.g., ABC123"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                className="mt-2 font-mono uppercase tracking-wider text-center text-lg"
-                data-testid="input-join-code"
-              />
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setJoinDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleJoinGroup}
-                disabled={joinCode.length !== 6 || joinGroupMutation.isPending}
-                data-testid="button-confirm-join"
-              >
-                {joinGroupMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Joining...
-                  </>
-                ) : (
-                  "Join Group"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <div>
+        <h1 className="text-2xl font-semibold">Welcome back, {user?.name?.split(" ")[0]}</h1>
+        <p className="text-muted-foreground">View your upcoming tasks and assignments</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Enrolled Groups</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{groups?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Active class enrollments</p>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               {upcomingTasks?.filter((t) => t.submissionStatus === "not_submitted").length || 0}
             </div>
             <p className="text-xs text-muted-foreground">Need to be submitted</p>
@@ -204,7 +145,7 @@ export default function StudentDashboard() {
             <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold">
               {upcomingTasks?.filter((t) => t.submissionStatus !== "not_submitted").length || 0}
             </div>
             <p className="text-xs text-muted-foreground">Submitted assignments</p>
@@ -212,65 +153,9 @@ export default function StudentDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-4">My Groups</h2>
-          {groupsLoading ? (
-            <div className="space-y-4">
-              {[1, 2].map((i) => (
-                <Card key={i}>
-                  <CardHeader>
-                    <Skeleton className="h-5 w-3/4" />
-                    <Skeleton className="h-4 w-1/2 mt-2" />
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          ) : groups && groups.length > 0 ? (
-            <div className="space-y-4">
-              {groups.map((group) => (
-                <Card key={group.id} className="hover-elevate" data-testid={`card-group-${group.id}`}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <CardTitle className="text-base">{group.name}</CardTitle>
-                        <CardDescription className="flex items-center gap-2 mt-1">
-                          <span>Teacher: {group.ownerName}</span>
-                        </CardDescription>
-                      </div>
-                      <Link href={`/groups/${group.id}`}>
-                        <Button size="sm" data-testid={`button-view-group-${group.id}`}>
-                          <FolderOpen className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="rounded-full bg-muted p-4 mb-4">
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No groups yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Join a group using the code from your teacher
-                </p>
-                <Button onClick={() => setJoinDialogOpen(true)} data-testid="button-join-first-group">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Join Your First Group
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        <div>
-          <h2 className="text-xl font-semibold mb-4">Upcoming Tasks</h2>
-          {tasksLoading ? (
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Upcoming Tasks</h2>
+        {tasksLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
                 <Card key={i}>
@@ -325,7 +210,6 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
           )}
-        </div>
       </div>
     </div>
   );
