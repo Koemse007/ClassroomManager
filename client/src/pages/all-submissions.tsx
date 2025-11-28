@@ -32,6 +32,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
+import { FilePreview } from "@/components/file-preview";
 
 interface SubmissionWithTask extends SubmissionWithStudent {
   taskTitle: string;
@@ -287,15 +288,15 @@ function SubmissionCard({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <CardHeader className="pb-4 border-b">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 flex-1">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                 {getInitials(submission.studentName)}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-medium text-sm">{submission.studentName}</p>
               <p className="text-xs text-muted-foreground">{submission.groupName}</p>
             </div>
@@ -303,7 +304,7 @@ function SubmissionCard({
           {isGraded && <Badge variant="secondary">Graded</Badge>}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="pt-4 space-y-4">
         <div>
           <p className="text-sm font-medium mb-1">{submission.taskTitle}</p>
           {submission.textContent && (
@@ -314,7 +315,32 @@ function SubmissionCard({
           <Clock className="h-3 w-3" />
           Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
         </div>
-        <div className="flex gap-2">
+
+        {submission.fileUrl && (
+          <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-xs truncate">
+                {submission.fileUrl.split("/").pop()}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+              <FilePreview fileUrl={submission.fileUrl} />
+              <a
+                href={submission.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0">
+                  <Download className="h-3 w-3" />
+                </Button>
+              </a>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 pt-2">
           <Input
             type="number"
             min="0"
