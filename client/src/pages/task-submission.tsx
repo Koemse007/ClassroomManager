@@ -33,6 +33,7 @@ import {
   Award,
 } from "lucide-react";
 import { format, isPast, isToday, isTomorrow, differenceInDays } from "date-fns";
+import { FilePreview } from "@/components/file-preview";
 
 interface TaskWithGroup extends Task {
   groupName: string;
@@ -222,17 +223,20 @@ export default function TaskSubmission() {
                   </p>
                   <p className="text-xs text-muted-foreground">Attachment from teacher</p>
                 </div>
-                <a
-                  href={task.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download
-                >
-                  <Button size="sm" variant="outline" data-testid="button-download-attachment">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                </a>
+                <div className="flex items-center gap-2">
+                  <FilePreview fileUrl={task.fileUrl} />
+                  <a
+                    href={task.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                  >
+                    <Button size="sm" variant="outline" data-testid="button-download-attachment">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                  </a>
+                </div>
               </div>
             )}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -285,8 +289,10 @@ export default function TaskSubmission() {
                     </p>
                     <p className="text-xs text-muted-foreground">Your uploaded file</p>
                   </div>
-                  <a
-                    href={submission.fileUrl}
+                  <div className="flex items-center gap-2">
+                    <FilePreview fileUrl={submission.fileUrl} />
+                    <a
+                      href={submission.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     download
