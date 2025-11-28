@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
-import type { SubmissionWithStudent } from "@shared/schema";
+import type { SubmissionWithStudent, TaskWithSubmissionStatus } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeadlineReminder } from "@/components/deadline-reminder";
 import {
   FileText,
   ClipboardList,
@@ -34,6 +35,11 @@ export default function TeacherDashboard() {
     enabled: !!token,
   });
 
+  const { data: upcomingTasks } = useQuery<TaskWithSubmissionStatus[]>({
+    queryKey: ["/api/tasks/upcoming"],
+    enabled: !!token,
+  });
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -44,37 +50,50 @@ export default function TeacherDashboard() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Welcome back, {user?.name?.split(" ")[0]}</h1>
-        <p className="text-muted-foreground">Manage your classes and review submissions</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="p-6 lg:p-10 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.name?.split(" ")[0]}</h1>
+          <p className="text-muted-foreground">Manage your classes and review submissions</p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats?.totalTasks || 0}</div>
-            <p className="text-xs text-muted-foreground">Assigned to students</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Reviews</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats?.pendingSubmissions || 0}</div>
-            <p className="text-xs text-muted-foreground">Submissions to grade</p>
-          </CardContent>
-        </Card>
-      </div>
+        {upcomingTasks && <DeadlineReminder tasks={upcomingTasks} title="Upcoming Deadlines" />}
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Submissions Pending Review</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-gradient-to-br from-card to-background border-primary/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">Active Tasks</CardTitle>
+              <FileText className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-primary">{stats?.totalTasks || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Assigned to students</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-card to-background border-warning/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">Pending Reviews</CardTitle>
+              <ClipboardList className="h-5 w-5 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-warning">{stats?.pendingSubmissions || 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Submissions to grade</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-card to-background border-success/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">Graded</CardTitle>
+              <CheckCircle2 className="h-5 w-5 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-success">{(pendingSubmissions?.length || 0) === 0 ? 'All' : '...'}</div>
+              <p className="text-xs text-muted-foreground mt-1">Submissions reviewed</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold mb-6 text-foreground">Submissions Pending Review</h2>
         {submissionsLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
@@ -131,6 +150,7 @@ export default function TeacherDashboard() {
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
     </div>
   );

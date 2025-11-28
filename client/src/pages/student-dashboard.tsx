@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeadlineReminder } from "@/components/deadline-reminder";
 import {
   Dialog,
   DialogContent,
@@ -120,41 +121,56 @@ export default function StudentDashboard() {
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Welcome back, {user?.name?.split(" ")[0]}</h1>
-        <p className="text-muted-foreground">View your upcoming tasks and assignments</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="p-6 lg:p-10 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.name?.split(" ")[0]}</h1>
+          <p className="text-muted-foreground">View your upcoming tasks and assignments</p>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {upcomingTasks?.filter((t) => t.submissionStatus === "not_submitted").length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Need to be submitted</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {upcomingTasks?.filter((t) => t.submissionStatus !== "not_submitted").length || 0}
-            </div>
-            <p className="text-xs text-muted-foreground">Submitted assignments</p>
-          </CardContent>
-        </Card>
-      </div>
+        {upcomingTasks && <DeadlineReminder tasks={upcomingTasks} />}
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Upcoming Tasks</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-gradient-to-br from-card to-background border-overdue/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">Pending Tasks</CardTitle>
+              <FileText className="h-5 w-5 text-overdue" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-overdue">
+                {upcomingTasks?.filter((t) => t.submissionStatus === "not_submitted").length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Need to be submitted</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-card to-background border-warning/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">In Review</CardTitle>
+              <Clock className="h-5 w-5 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-warning">
+                {upcomingTasks?.filter((t) => t.submissionStatus === "submitted").length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Awaiting grades</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-gradient-to-br from-card to-background border-success/20 hover-elevate">
+            <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-foreground">Completed</CardTitle>
+              <ClipboardCheck className="h-5 w-5 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-success">
+                {upcomingTasks?.filter((t) => t.submissionStatus === "graded").length || 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Graded assignments</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <h2 className="text-2xl font-bold mb-6 text-foreground">All Your Tasks</h2>
         {tasksLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -210,6 +226,7 @@ export default function StudentDashboard() {
               </CardContent>
             </Card>
           )}
+        </div>
       </div>
     </div>
   );
