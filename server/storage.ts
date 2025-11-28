@@ -80,6 +80,16 @@ db.exec(`
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
     FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
   );
+
+  CREATE TABLE IF NOT EXISTS announcement_reads (
+    id TEXT PRIMARY KEY,
+    announcement_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    read_at TEXT NOT NULL,
+    FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(announcement_id, user_id)
+  );
 `);
 
 function generateJoinCode(): string {
@@ -125,6 +135,10 @@ export interface IStorage {
 
   createAnnouncement(announcement: InsertAnnouncement, teacherId: string): Promise<Announcement>;
   getAnnouncementsForGroup(groupId: string): Promise<AnnouncementWithTeacher[]>;
+  markAnnouncementAsRead(announcementId: string, userId: string): Promise<void>;
+  getUnreadAnnouncementCount(groupId: string, userId: string): Promise<number>;
+  getUnreadSubmissionCount(teacherId: string): Promise<number>;
+  getUnreadTaskCount(studentId: string): Promise<number>;
 }
 
 export class SQLiteStorage implements IStorage {
