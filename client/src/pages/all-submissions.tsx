@@ -151,7 +151,7 @@ export default function AllSubmissions() {
           </p>
         </div>
         {groups.length > 1 && (
-          <Select value={groupFilter} onValueChange={() => { setGroupFilter(groupFilter); setCurrentPage(1); }}>
+          <Select value={groupFilter} onValueChange={(value) => { setGroupFilter(value); setCurrentPage(1); }}>
             <SelectTrigger className="w-[200px]" data-testid="select-group-filter">
               <SelectValue placeholder="Filter by group" />
             </SelectTrigger>
