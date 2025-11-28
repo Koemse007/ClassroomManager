@@ -19,6 +19,8 @@ import SubmissionReview from "@/pages/submission-review";
 import AllSubmissions from "@/pages/all-submissions";
 import AnalyticsDashboard from "@/pages/analytics-dashboard";
 import AllTasks from "@/pages/all-tasks";
+import TeacherGroups from "@/pages/teacher-groups";
+import StudentGroups from "@/pages/student-groups";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -43,6 +45,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function Dashboard() {
   const { user } = useAuth();
   return user?.role === "teacher" ? <TeacherDashboard /> : <StudentDashboard />;
+}
+
+function GroupsPage() {
+  const { user } = useAuth();
+  return user?.role === "teacher" ? <TeacherGroups /> : <StudentGroups />;
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -106,7 +113,7 @@ function Router() {
       <Route path="/groups">
         <ProtectedRoute>
           <AppLayout>
-            <Dashboard />
+            <GroupsPage />
           </AppLayout>
         </ProtectedRoute>
       </Route>
