@@ -28,6 +28,8 @@ import {
   FolderOpen,
   Loader2,
   FileText,
+  Search,
+  X,
 } from "lucide-react";
 
 export default function TeacherDashboard() {
@@ -35,6 +37,7 @@ export default function TeacherDashboard() {
   const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { data: groups, isLoading: groupsLoading } = useQuery<GroupWithMembers[]>({
     queryKey: ["/api/groups"],
@@ -68,6 +71,26 @@ export default function TeacherDashboard() {
     },
   });
 
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/groups/${id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+      toast({
+        title: "Group deleted",
+        description: "The group has been removed.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to delete group",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const copyJoinCode = (code: string) => {
     navigator.clipboard.writeText(code);
     toast({
@@ -81,6 +104,11 @@ export default function TeacherDashboard() {
       createGroupMutation.mutate(groupName.trim());
     }
   };
+
+  // Filter groups based on search query
+  const filteredGroups = groups?.filter((group) =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   return (
     <div className="p-6 lg:p-8 space-y-8">
@@ -171,75 +199,155 @@ export default function TeacherDashboard() {
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-4">Your Groups</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <h2 className="text-xl font-semibold">Your Groups ({filteredGroups.length})</h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search groups..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10 w-full sm:w-64"
+              data-testid="input-search-groups"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                data-testid="button-clear-search"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {groupsLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
               <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-8 w-full" />
+                <CardContent className="p-6">
+                  <Skeleton className="h-20 w-full" />
                 </CardContent>
               </Card>
             ))}
           </div>
-        ) : groups && groups.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groups.map((group) => (
-              <Card key={group.id} className="hover-elevate" data-testid={`card-group-${group.id}`}>
+        ) : filteredGroups.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {filteredGroups.map((group) => (
+              <Card key={group.id} className="flex flex-col">
                 <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg">{group.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1">
-                        <Users className="h-3 w-3" />
-                        {group.memberCount} {group.memberCount === 1 ? "student" : "students"}
-                      </CardDescription>
+                      <Link href={`/groups/${group.id}`}>
+                        <CardTitle className="cursor-pointer hover:text-primary transition-colors" data-testid={`link-group-${group.id}`}>
+                          {group.name}
+                        </CardTitle>
+                      </Link>
+                      <CardDescription>{group.memberCount} students enrolled</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Join Code:</span>
-                    <code className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                <CardContent className="flex-1 space-y-4">
+                  <div className="flex items-center gap-2 bg-muted p-3 rounded-lg">
+                    <span className="text-xs font-mono text-muted-foreground">Code:</span>
+                    <Badge variant="secondary" className="font-mono">
                       {group.joinCode}
-                    </code>
+                    </Badge>
                     <Button
+                      size="sm"
                       variant="ghost"
-                      size="icon"
                       onClick={() => copyJoinCode(group.joinCode)}
                       data-testid={`button-copy-code-${group.id}`}
                     >
-                      <Copy className="h-4 w-4" />
+                      <Copy className="h-3 w-3" />
                     </Button>
                   </div>
-                  <Link href={`/groups/${group.id}`}>
-                    <Button variant="outline" className="w-full" data-testid={`button-view-group-${group.id}`}>
-                      <FolderOpen className="h-4 w-4 mr-2" />
-                      View Group
+                  <div className="flex gap-2">
+                    <Link href={`/groups/${group.id}`} className="flex-1">
+                      <Button variant="outline" size="sm" className="w-full">
+                        <FolderOpen className="h-4 w-4 mr-1" />
+                        View Details
+                      </Button>
+                    </Link>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteGroupMutation.mutate(group.id)}
+                      disabled={deleteGroupMutation.isPending}
+                      data-testid={`button-delete-group-${group.id}`}
+                    >
+                      {deleteGroupMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Delete"
+                      )}
                     </Button>
-                  </Link>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="rounded-full bg-muted p-4 mb-4">
-                <Users className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-medium mb-2">No groups yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first group to get started with your classroom
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <FolderOpen className="h-12 w-12 text-muted-foreground mb-3" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchQuery ? "No groups found" : "No groups yet"}
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {searchQuery
+                  ? "Try a different search term"
+                  : "Create your first group to get started"}
               </p>
-              <Button onClick={() => setCreateDialogOpen(true)} data-testid="button-create-first-group">
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Group
-              </Button>
+              {!searchQuery && (
+                <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Group
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Group</DialogTitle>
+                      <DialogDescription>
+                        Create a new class group. A unique join code will be generated automatically.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                      <Label htmlFor="group-name-2">Group Name</Label>
+                      <Input
+                        id="group-name-2"
+                        placeholder="e.g., Math 101 - Fall 2024"
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        className="mt-2"
+                        data-testid="input-group-name-2"
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleCreateGroup}
+                        disabled={!groupName.trim() || createGroupMutation.isPending}
+                        data-testid="button-confirm-create-2"
+                      >
+                        {createGroupMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Creating...
+                          </>
+                        ) : (
+                          "Create Group"
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </CardContent>
           </Card>
         )}

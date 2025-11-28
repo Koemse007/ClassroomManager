@@ -28,6 +28,8 @@ import {
   AlertCircle,
   Save,
   ClipboardList,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -37,12 +39,15 @@ interface SubmissionWithTask extends SubmissionWithStudent {
   taskId: string;
 }
 
+const ITEMS_PER_PAGE = 6;
+
 export default function AllSubmissions() {
   const { token } = useAuth();
   const { toast } = useToast();
   const [scores, setScores] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data: submissions, isLoading } = useQuery<SubmissionWithTask[]>({
     queryKey: ["/api/submissions/all"],
@@ -110,6 +115,14 @@ export default function AllSubmissions() {
   const gradedSubmissions = filteredSubmissions?.filter((s) => s.score !== null) || [];
   const pendingSubmissions = filteredSubmissions?.filter((s) => s.score === null) || [];
 
+  // Pagination logic
+  const paginateItems = (items: typeof pendingSubmissions) => {
+    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+    return items.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+  };
+
+  const totalPages = Math.ceil((filteredSubmissions?.length || 0) / ITEMS_PER_PAGE);
+
   if (isLoading) {
     return (
       <div className="p-6 lg:p-8">
@@ -137,7 +150,7 @@ export default function AllSubmissions() {
           </p>
         </div>
         {groups.length > 1 && (
-          <Select value={groupFilter} onValueChange={setGroupFilter}>
+          <Select value={groupFilter} onValueChange={() => { setGroupFilter(groupFilter); setCurrentPage(1); }}>
             <SelectTrigger className="w-[200px]" data-testid="select-group-filter">
               <SelectValue placeholder="Filter by group" />
             </SelectTrigger>
@@ -170,19 +183,22 @@ export default function AllSubmissions() {
 
         <TabsContent value="pending">
           {pendingSubmissions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {pendingSubmissions.map((submission) => (
-                <SubmissionCard
-                  key={submission.id}
-                  submission={submission}
-                  score={scores[submission.id] ?? ""}
-                  onScoreChange={(value) => handleScoreChange(submission.id, value)}
-                  onSave={() => handleSaveScore(submission.id)}
-                  isSaving={savingId === submission.id}
-                  getInitials={getInitials}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {paginateItems(pendingSubmissions).map((submission) => (
+                  <SubmissionCard
+                    key={submission.id}
+                    submission={submission}
+                    score={scores[submission.id] ?? ""}
+                    onScoreChange={(value) => handleScoreChange(submission.id, value)}
+                    onSave={() => handleSaveScore(submission.id)}
+                    isSaving={savingId === submission.id}
+                    getInitials={getInitials}
+                  />
+                ))}
+              </div>
+              {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
+            </>
           ) : (
             <EmptyState
               icon={<CheckCircle2 className="h-8 w-8" />}
@@ -194,20 +210,23 @@ export default function AllSubmissions() {
 
         <TabsContent value="graded">
           {gradedSubmissions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {gradedSubmissions.map((submission) => (
-                <SubmissionCard
-                  key={submission.id}
-                  submission={submission}
-                  score={scores[submission.id] ?? submission.score?.toString() ?? ""}
-                  onScoreChange={(value) => handleScoreChange(submission.id, value)}
-                  onSave={() => handleSaveScore(submission.id)}
-                  isSaving={savingId === submission.id}
-                  getInitials={getInitials}
-                  isGraded
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {paginateItems(gradedSubmissions).map((submission) => (
+                  <SubmissionCard
+                    key={submission.id}
+                    submission={submission}
+                    score={scores[submission.id] ?? submission.score?.toString() ?? ""}
+                    onScoreChange={(value) => handleScoreChange(submission.id, value)}
+                    onSave={() => handleSaveScore(submission.id)}
+                    isSaving={savingId === submission.id}
+                    getInitials={getInitials}
+                    isGraded
+                  />
+                ))}
+              </div>
+              {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
+            </>
           ) : (
             <EmptyState
               icon={<AlertCircle className="h-8 w-8" />}
@@ -219,25 +238,28 @@ export default function AllSubmissions() {
 
         <TabsContent value="all">
           {filteredSubmissions && filteredSubmissions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredSubmissions.map((submission) => (
-                <SubmissionCard
-                  key={submission.id}
-                  submission={submission}
-                  score={scores[submission.id] ?? submission.score?.toString() ?? ""}
-                  onScoreChange={(value) => handleScoreChange(submission.id, value)}
-                  onSave={() => handleSaveScore(submission.id)}
-                  isSaving={savingId === submission.id}
-                  getInitials={getInitials}
-                  isGraded={submission.score !== null}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {paginateItems(filteredSubmissions).map((submission) => (
+                  <SubmissionCard
+                    key={submission.id}
+                    submission={submission}
+                    score={scores[submission.id] ?? submission.score?.toString() ?? ""}
+                    onScoreChange={(value) => handleScoreChange(submission.id, value)}
+                    onSave={() => handleSaveScore(submission.id)}
+                    isSaving={savingId === submission.id}
+                    getInitials={getInitials}
+                    isGraded={submission.score !== null}
+                  />
+                ))}
+              </div>
+              {totalPages > 1 && <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
+            </>
           ) : (
             <EmptyState
-              icon={<ClipboardList className="h-8 w-8" />}
-              title="No submissions yet"
-              description="Students haven't submitted any work yet."
+              icon={<AlertCircle className="h-8 w-8" />}
+              title="No submissions"
+              description="Students haven't submitted anything yet."
             />
           )}
         </TabsContent>
@@ -253,7 +275,7 @@ function SubmissionCard({
   onSave,
   isSaving,
   getInitials,
-  isGraded = false,
+  isGraded,
 }: {
   submission: SubmissionWithTask;
   score: string;
@@ -264,99 +286,52 @@ function SubmissionCard({
   isGraded?: boolean;
 }) {
   return (
-    <Card data-testid={`card-submission-${submission.id}`} className={isGraded ? "border-green-500/30" : ""}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-primary/10 text-primary">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-medium">
                 {getInitials(submission.studentName)}
               </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-base">{submission.studentName}</CardTitle>
-              <CardDescription>{submission.studentEmail}</CardDescription>
+              <p className="font-medium text-sm">{submission.studentName}</p>
+              <p className="text-xs text-muted-foreground">{submission.groupName}</p>
             </div>
           </div>
-          {isGraded && (
-            <Badge variant="secondary" className="gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              {submission.score}/100
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2 mt-2">
-          <Badge variant="outline" className="text-xs">
-            {submission.groupName}
-          </Badge>
-          <span className="text-xs text-muted-foreground">·</span>
-          <Link href={`/tasks/${submission.taskId}/submissions`}>
-            <span className="text-xs text-primary hover:underline cursor-pointer">
-              {submission.taskTitle}
-            </span>
-          </Link>
+          {isGraded && <Badge variant="secondary">Graded</Badge>}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="text-xs text-muted-foreground">
-          Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy 'at' h:mm a")}
+        <div>
+          <p className="text-sm font-medium mb-1">{submission.taskTitle}</p>
+          {submission.textContent && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{submission.textContent}</p>
+          )}
         </div>
-
-        {submission.textContent && (
-          <div className="bg-muted p-3 rounded-lg">
-            <p className="text-sm whitespace-pre-wrap line-clamp-4">
-              {submission.textContent}
-            </p>
-          </div>
-        )}
-
-        {submission.fileUrl && (
-          <a
-            href={submission.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="flex items-center gap-2 p-2 bg-muted rounded-lg hover-elevate"
-          >
-            <FileText className="h-4 w-4 text-primary" />
-            <span className="text-sm flex-1 truncate">
-              {submission.fileUrl.split("/").pop()}
-            </span>
-            <Download className="h-4 w-4 text-muted-foreground" />
-          </a>
-        )}
-
-        <div className="flex items-center gap-3 pt-2">
-          <div className="flex items-center gap-2 flex-1">
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              placeholder="Score"
-              value={score}
-              onChange={(e) => onScoreChange(e.target.value)}
-              className="w-24"
-              data-testid={`input-score-${submission.id}`}
-            />
-            <span className="text-sm text-muted-foreground">/ 100</span>
-          </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="h-3 w-3" />
+          Submitted {format(new Date(submission.submittedAt), "MMM d, yyyy h:mm a")}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            placeholder="Score (0-100)"
+            value={score}
+            onChange={(e) => onScoreChange(e.target.value)}
+            className="flex-1"
+            disabled={isSaving}
+          />
           <Button
             size="sm"
             onClick={onSave}
             disabled={isSaving}
-            data-testid={`button-save-score-${submission.id}`}
+            data-testid="button-save-score"
           >
-            {isSaving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                {isGraded ? "Update" : "Save"}
-              </>
-            )}
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           </Button>
         </div>
       </CardContent>
@@ -374,14 +349,48 @@ function EmptyState({
   description: string;
 }) {
   return (
-    <Card className="border-dashed">
+    <Card>
       <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="rounded-full bg-muted p-4 mb-4 text-muted-foreground">
-          {icon}
-        </div>
-        <h3 className="text-lg font-medium mb-2">{title}</h3>
-        <p className="text-muted-foreground">{description}</p>
+        <div className="text-muted-foreground mb-4">{icon}</div>
+        <h3 className="text-lg font-semibold mb-2">{title}</h3>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function PaginationControls({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2 mt-6">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        data-testid="button-prev-page"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        Page {currentPage} of {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        data-testid="button-next-page"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </Button>
+    </div>
   );
 }
