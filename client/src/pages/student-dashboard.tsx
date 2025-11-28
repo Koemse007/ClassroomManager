@@ -171,7 +171,7 @@ export default function StudentDashboard() {
 
         <div>
           <h2 className="text-2xl font-bold mb-6 text-foreground">All Your Tasks</h2>
-        {tasksLoading ? (
+          {tasksLoading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
                 <Card key={i}>

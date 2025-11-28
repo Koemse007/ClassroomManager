@@ -59,7 +59,7 @@ export default function TeacherDashboard() {
 
         {upcomingTasks && <DeadlineReminder tasks={upcomingTasks} title="Upcoming Deadlines" />}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-gradient-to-br from-card to-background border-primary/20 hover-elevate">
             <CardHeader className="flex flex-row items-center justify-between gap-1 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-foreground">Active Tasks</CardTitle>
@@ -94,7 +94,7 @@ export default function TeacherDashboard() {
 
         <div>
           <h2 className="text-2xl font-bold mb-6 text-foreground">Submissions Pending Review</h2>
-        {submissionsLoading ? (
+          {submissionsLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Card key={i}>
