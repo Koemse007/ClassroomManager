@@ -158,9 +158,6 @@ export default function SubmissionReview() {
             </p>
           </div>
         </div>
-        {task.fileUrl && (
-          <FilePreview fileUrl={task.fileUrl} fileName={task.fileUrl.split("/").pop()} />
-        )}
       </div>
 
       <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900">

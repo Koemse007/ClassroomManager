@@ -143,7 +143,7 @@ export interface TaskWithSubmissionStatus extends Task {
   submissionStatus?: "not_submitted" | "submitted" | "graded";
   submissionCount?: number;
   totalStudents?: number;
-  score?: number | null;
+  score?: number | null;lo
 }
 
 export interface SubmissionWithStudent extends Submission {

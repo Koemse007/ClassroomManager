@@ -239,6 +239,24 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/groups/:id/members/:memberId", authenticateToken, requireTeacher, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const group = await storage.getGroupById(req.params.id);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+      if (group.ownerId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      await storage.removeMemberFromGroup(req.params.id, req.params.memberId);
+      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
+      res.json({ message: "Student removed" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/groups/join", authenticateToken, requireStudent, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const validatedData = joinGroupSchema.parse(req.body);
