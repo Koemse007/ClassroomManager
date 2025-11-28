@@ -48,6 +48,11 @@ export function AppSidebar() {
       url: "/submissions",
       icon: ClipboardList,
     });
+    menuItems.push({
+      title: "Analytics",
+      url: "/analytics",
+      icon: LayoutDashboard,
+    });
   }
 
   const getInitials = (name: string) => {

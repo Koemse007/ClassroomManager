@@ -442,6 +442,82 @@ export class SQLiteStorage implements IStorage {
     `);
     return stmt.all(studentId, studentId) as TaskWithSubmissionStatus[];
   }
+
+  async getAnalyticsForTeacher(teacherId: string): Promise<{
+    totalGroups: number;
+    totalTasks: number;
+    totalSubmissions: number;
+    averageScore: number;
+    submissionRate: number;
+    groupStats: { groupName: string; submissionRate: number; averageScore: number; taskCount: number }[];
+  }> {
+    const groupsStmt = db.prepare("SELECT COUNT(*) as count FROM groups WHERE owner_id = ?");
+    const groups = groupsStmt.get(teacherId) as { count: number };
+
+    const tasksStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+    `);
+    const tasks = tasksStmt.get(teacherId) as { count: number };
+
+    const submissionsStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+    `);
+    const submissions = submissionsStmt.get(teacherId) as { count: number };
+
+    const avgScoreStmt = db.prepare(`
+      SELECT AVG(score) as avgScore FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ? AND s.score IS NOT NULL
+    `);
+    const avgScore = avgScoreStmt.get(teacherId) as { avgScore: number | null };
+
+    const expectedSubmissionsStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM (
+        SELECT DISTINCT t.id, gm.user_id
+        FROM tasks t
+        JOIN groups g ON t.group_id = g.id
+        JOIN group_members gm ON g.id = gm.group_id
+        WHERE g.owner_id = ?
+      )
+    `);
+    const expectedSubmissions = expectedSubmissionsStmt.get(teacherId) as { count: number };
+
+    const groupStatsStmt = db.prepare(`
+      SELECT 
+        g.name as groupName,
+        COUNT(t.id) as taskCount,
+        COUNT(s.id) as submittedCount,
+        COALESCE(COUNT(DISTINCT CASE WHEN gm.user_id IS NOT NULL THEN gm.user_id END), 0) as studentCount,
+        COALESCE(AVG(s.score), 0) as avgScore
+      FROM groups g
+      LEFT JOIN group_members gm ON g.id = gm.group_id
+      LEFT JOIN tasks t ON g.id = t.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id
+      WHERE g.owner_id = ?
+      GROUP BY g.id, g.name
+    `);
+    const groupStats = groupStatsStmt.all(teacherId) as any[];
+
+    return {
+      totalGroups: groups.count,
+      totalTasks: tasks.count,
+      totalSubmissions: submissions.count,
+      averageScore: Math.round((avgScore.avgScore || 0) * 100) / 100,
+      submissionRate: expectedSubmissions.count > 0 ? Math.round((submissions.count / expectedSubmissions.count) * 100) : 0,
+      groupStats: groupStats.map((g) => ({
+        groupName: g.groupName,
+        submissionRate: g.studentCount > 0 ? Math.round((g.submittedCount / (g.taskCount * g.studentCount)) * 100) : 0,
+        averageScore: Math.round(g.avgScore * 100) / 100,
+        taskCount: g.taskCount,
+      })),
+    };
+  }
 }
 
 export const storage = new SQLiteStorage();

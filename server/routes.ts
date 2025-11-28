@@ -45,9 +45,21 @@ const upload = multer({
     if (extname || mimetype) {
       return cb(null, true);
     }
-    cb(new Error("Invalid file type"));
+    cb(new Error(`Invalid file type. Allowed types: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG, GIF, ZIP (max 10MB)`));
   },
 });
+
+const uploadErrorHandler = (err: any, req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ message: "File size exceeds 10MB limit" });
+    }
+    return res.status(400).json({ message: `Upload error: ${err.message}` });
+  } else if (err) {
+    return res.status(400).json({ message: err.message || "File upload failed" });
+  }
+  next();
+};
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -306,7 +318,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/groups/:groupId/tasks", authenticateToken, requireTeacher, upload.single("file"), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/groups/:groupId/tasks", authenticateToken, requireTeacher, upload.single("file"), uploadErrorHandler, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const group = await storage.getGroupById(req.params.groupId);
       if (!group) {
@@ -434,7 +446,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/tasks/:taskId/submit", authenticateToken, requireStudent, upload.single("file"), async (req: AuthenticatedRequest, res: Response) => {
+  app.post("/api/tasks/:taskId/submit", authenticateToken, requireStudent, upload.single("file"), uploadErrorHandler, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const task = await storage.getTaskById(req.params.taskId);
       if (!task) {
@@ -526,6 +538,34 @@ export async function registerRoutes(
       if (error.errors) {
         return res.status(400).json({ message: error.errors[0]?.message || "Validation error" });
       }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics", authenticateToken, requireTeacher, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const analytics = await storage.getAnalyticsForTeacher(req.user!.id);
+      res.json(analytics);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/export-csv", authenticateToken, requireTeacher, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const submissions = await storage.getAllSubmissionsForTeacher(req.user!.id);
+      
+      let csv = "Task,Group,Student Name,Student Email,Submitted At,Score\n";
+      submissions.forEach((sub) => {
+        const score = sub.score !== null ? sub.score : "Not Graded";
+        const submitted = new Date(sub.submittedAt).toLocaleString();
+        csv += `"${sub.taskTitle}","${sub.groupName}","${sub.studentName}","${sub.studentEmail}","${submitted}","${score}"\n`;
+      });
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", 'attachment; filename="grades-report.csv"');
+      res.send(csv);
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
