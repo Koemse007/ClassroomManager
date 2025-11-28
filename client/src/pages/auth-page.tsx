@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -48,30 +48,22 @@ export default function AuthPage() {
 
   const loginMutation = useMutation({
     mutationFn: async (data: LoginCredentials) => {
-      try {
-        const response = await apiRequest<{ user: any; token: string }>(
-          "POST",
-          "/api/auth/login",
-          data
-        );
-        return response;
-      } catch (err) {
-        console.error("Login error:", err);
-        throw err;
-      }
+      const response = await apiRequest<{ user: any; token: string }>(
+        "POST",
+        "/api/auth/login",
+        data
+      );
+      return response;
     },
     onSuccess: (data) => {
-      if (data?.user && data?.token) {
-        login(data.user, data.token);
-        toast({
-          title: "Welcome back!",
-          description: `Signed in as ${data.user.name}`,
-        });
-        setLocation("/dashboard");
-      }
+      login(data.user, data.token);
+      toast({
+        title: "Welcome back!",
+        description: `Signed in as ${data.user.name}`,
+      });
+      setLocation("/dashboard");
     },
     onError: (error: Error) => {
-      console.error("Login mutation error:", error);
       toast({
         title: "Login failed",
         description: error.message || "Invalid email or password",
@@ -82,30 +74,22 @@ export default function AuthPage() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      try {
-        const response = await apiRequest<{ user: Omit<typeof data, 'password'>; token: string }>(
-          "POST",
-          "/api/auth/register",
-          data
-        );
-        return response;
-      } catch (err) {
-        console.error("Registration error:", err);
-        throw err;
-      }
+      const response = await apiRequest<{ user: any; token: string }>(
+        "POST",
+        "/api/auth/register",
+        data
+      );
+      return response;
     },
     onSuccess: (data) => {
-      if (data?.user && data?.token) {
-        login(data.user, data.token);
-        toast({
-          title: "Account created!",
-          description: `Welcome to ClassRoom, ${data.user.name}`,
-        });
-        setLocation("/dashboard");
-      }
+      login(data.user, data.token);
+      toast({
+        title: "Account created!",
+        description: `Welcome to ClassRoom, ${data.user.name}`,
+      });
+      setLocation("/dashboard");
     },
     onError: (error: Error) => {
-      console.error("Registration mutation error:", error);
       toast({
         title: "Registration failed",
         description: error.message || "Could not create account",
@@ -114,21 +98,11 @@ export default function AuthPage() {
     },
   });
 
-  const handleLoginSubmit = (data: LoginCredentials) => {
-    loginMutation.mutate(data);
+  const handleTabChange = (newIsLogin: boolean) => {
+    loginForm.reset();
+    registerForm.reset();
+    setIsLogin(newIsLogin);
   };
-
-  const handleRegisterSubmit = (data: InsertUser) => {
-    registerMutation.mutate(data);
-  };
-
-  useEffect(() => {
-    if (isLogin) {
-      loginForm.reset();
-    } else {
-      registerForm.reset();
-    }
-  }, [isLogin, loginForm, registerForm]);
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -150,7 +124,7 @@ export default function AuthPage() {
           <CardContent className="pt-4">
             {isLogin ? (
               <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(handleLoginSubmit)} className="space-y-4">
+                <form onSubmit={loginForm.handleSubmit((data) => loginMutation.mutate(data))} className="space-y-4">
                   <FormField
                     control={loginForm.control}
                     name="email"
@@ -206,7 +180,7 @@ export default function AuthPage() {
               </Form>
             ) : (
               <Form {...registerForm}>
-                <form onSubmit={registerForm.handleSubmit(handleRegisterSubmit)} className="space-y-4">
+                <form onSubmit={registerForm.handleSubmit((data) => registerMutation.mutate(data))} className="space-y-4">
                   <FormField
                     control={registerForm.control}
                     name="name"
@@ -316,7 +290,7 @@ export default function AuthPage() {
               </span>
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => handleTabChange(!isLogin)}
                 className="font-medium text-primary hover:underline"
                 data-testid="button-toggle-auth"
               >
