@@ -12,7 +12,6 @@ import {
   insertGroupSchema,
   joinGroupSchema,
   insertTaskSchema,
-  updateTaskSchema,
   insertSubmissionSchema,
   updateScoreSchema,
 } from "@shared/schema";
@@ -420,37 +419,6 @@ export async function registerRoutes(
         groupName: group.name,
         teacherName: teacher?.name || "Unknown",
       });
-    } catch (error: any) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.patch("/api/tasks/:id", authenticateToken, requireTeacher, upload.single("file"), async (req: AuthenticatedRequest, res: Response) => {
-    try {
-      const task = await storage.getTaskById(req.params.id);
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-
-      const group = await storage.getGroupById(task.groupId);
-      if (!group || group.ownerId !== req.user!.id) {
-        return res.status(403).json({ message: "Not authorized" });
-      }
-
-      const updateData: any = {};
-      if (req.body.title) updateData.title = req.body.title;
-      if (req.body.description) updateData.description = req.body.description;
-      if (req.body.dueDate) updateData.dueDate = req.body.dueDate;
-
-      let fileUrl: string | null | undefined = undefined;
-      if (req.file) {
-        fileUrl = `/uploads/${req.file.filename}`;
-      } else if (req.body.removeFile === "true") {
-        fileUrl = null;
-      }
-
-      const updatedTask = await storage.updateTask(req.params.id, updateData, fileUrl);
-      res.json(updatedTask);
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

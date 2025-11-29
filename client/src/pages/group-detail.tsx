@@ -45,6 +45,7 @@ import {
   Edit,
   Eye,
   Bell,
+  Edit,
 } from "lucide-react";
 import { format, isPast, isToday, isTomorrow, differenceInDays } from "date-fns";
 
@@ -429,11 +430,6 @@ export default function GroupDetail() {
                                   <Link href={`/tasks/${task.id}/submissions`}>
                                     <Button size="icon" variant="ghost" data-testid={`button-view-submissions-${task.id}`}>
                                       <Eye className="h-4 w-4" />
-                                    </Button>
-                                  </Link>
-                                  <Link href={`/tasks/${task.id}/edit`}>
-                                    <Button size="icon" variant="ghost" data-testid={`button-edit-task-${task.id}`}>
-                                      <Edit className="h-4 w-4" />
                                     </Button>
                                   </Link>
                                   <Button
