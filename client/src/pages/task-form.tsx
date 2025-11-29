@@ -97,7 +97,6 @@ export default function TaskForm() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      setExistingFileUrl(null);
     }
   };
 
