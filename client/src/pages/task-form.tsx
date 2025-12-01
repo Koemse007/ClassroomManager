@@ -192,30 +192,21 @@ export default function TaskForm() {
         });
         return;
       }
-      if (q.questionType === "multiple_choice") {
-        const opts = JSON.parse(q.options || '["","","",""]');
-        const nonEmpty = opts.filter((o: string) => o.trim());
-        if (nonEmpty.length < 2) {
-          toast({
-            title: "Insufficient options",
-            description: "Multiple choice questions need at least 2 options",
-            variant: "destructive",
-          });
-          return;
-        }
+      const opts = JSON.parse(q.options || '["","","",""]');
+      const nonEmpty = opts.filter((o: string) => o.trim());
+      if (nonEmpty.length < 2) {
+        toast({
+          title: "Insufficient options",
+          description: "Questions need at least 2 options (A, B, etc.)",
+          variant: "destructive",
+        });
+        return;
       }
     }
 
     const questions = quizQuestions.map(({ tempId, id, taskId, ...q }) => {
-      if (q.questionType === "multiple_choice" && typeof q.options === "string") {
-        try {
-          const parsed = JSON.parse(q.options);
-          return { ...q, options: JSON.stringify(parsed), order: q.order };
-        } catch {
-          return { ...q, order: q.order };
-        }
-      }
-      return { ...q, options: q.questionType === "true_false" ? null : q.options, order: q.order };
+      const opts = JSON.parse(q.options || '["","","",""]');
+      return { ...q, options: JSON.stringify(opts), order: q.order };
     });
 
     createTaskMutation.mutate({ ...data, taskType: "quiz", questions });
@@ -517,30 +508,11 @@ export default function TaskForm() {
                           />
                         </div>
 
-                        {/* Question Type */}
+                        {/* Question Type - Only Multiple Choice */}
                         <div>
-                          <label className="text-sm font-medium">Question Type</label>
-                          <Select
-                            value={question.questionType}
-                            onValueChange={(value: any) => {
-                              handleUpdateQuestion(question.tempId, "questionType", value);
-                              // Reset correct answer when changing type
-                              handleUpdateQuestion(question.tempId, "correctAnswer", "");
-                              if (value === "multiple_choice") {
-                                handleUpdateQuestion(question.tempId, "options", JSON.stringify(["", "", "", ""]));
-                              } else {
-                                handleUpdateQuestion(question.tempId, "options", null);
-                              }
-                            }}
-                          >
-                            <SelectTrigger data-testid={`select-question-type-${idx}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
-                              <SelectItem value="true_false">True/False</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Question Type: Multiple Choice (A/B/C/D)
+                          </p>
                         </div>
 
                         {/* Multiple Choice Options - Only show for MC type */}
@@ -572,55 +544,34 @@ export default function TaskForm() {
 
                         {/* Correct Answer */}
                         <div>
-                          <label className="text-sm font-medium">
-                            {question.questionType === "multiple_choice"
-                              ? "Correct Option (A/B/C/D)"
-                              : "Correct Answer"}
-                          </label>
-                          {question.questionType === "multiple_choice" ? (
-                            <Select
-                              value={question.correctAnswer}
-                              onValueChange={(value) =>
-                                handleUpdateQuestion(question.tempId, "correctAnswer", value)
-                              }
-                            >
-                              <SelectTrigger data-testid={`select-correct-answer-${idx}`}>
-                                <SelectValue placeholder="Select correct option" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {(() => {
-                                  try {
-                                    const opts = JSON.parse(question.options || '["","","",""]');
-                                    return answerLabels
-                                      .map((label, i) => ({ label, text: opts[i] }))
-                                      .filter(opt => opt.text?.trim())
-                                      .map(opt => (
-                                        <SelectItem key={opt.label} value={opt.label}>
-                                          Option {opt.label}: {opt.text}
-                                        </SelectItem>
-                                      ));
-                                  } catch {
-                                    return <SelectItem value="">Error loading options</SelectItem>;
-                                  }
-                                })()}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <Select
-                              value={question.correctAnswer}
-                              onValueChange={(value) =>
-                                handleUpdateQuestion(question.tempId, "correctAnswer", value)
-                              }
-                            >
-                              <SelectTrigger data-testid={`select-tf-answer-${idx}`}>
-                                <SelectValue placeholder="Select correct answer" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="true">True</SelectItem>
-                                <SelectItem value="false">False</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          )}
+                          <label className="text-sm font-medium">Correct Option (A/B/C/D)</label>
+                          <Select
+                            value={question.correctAnswer}
+                            onValueChange={(value) =>
+                              handleUpdateQuestion(question.tempId, "correctAnswer", value)
+                            }
+                          >
+                            <SelectTrigger data-testid={`select-correct-answer-${idx}`}>
+                              <SelectValue placeholder="Select correct option" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(() => {
+                                try {
+                                  const opts = JSON.parse(question.options || '["","","",""]');
+                                  return answerLabels
+                                    .map((label, i) => ({ label, text: opts[i] }))
+                                    .filter(opt => opt.text?.trim())
+                                    .map(opt => (
+                                      <SelectItem key={opt.label} value={opt.label}>
+                                        Option {opt.label}: {opt.text}
+                                      </SelectItem>
+                                    ));
+                                } catch {
+                                  return <SelectItem value="">Error loading options</SelectItem>;
+                                }
+                              })()}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </Card>

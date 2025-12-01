@@ -364,29 +364,36 @@ export async function registerRoutes(
         const task = await storage.createTask(taskData, fileUrl);
         return res.status(201).json(task);
       } else if (taskType === "quiz") {
+        const questionsData = req.body.questions ? JSON.parse(req.body.questions) : [];
+        
         const taskData = {
           groupId: req.params.groupId,
           title: req.body.title,
           description: req.body.description,
           dueDate: req.body.dueDate,
           taskType: "quiz" as const,
-          questions: req.body.questions ? JSON.parse(req.body.questions) : [],
+          questions: questionsData,
         };
 
         insertQuizTaskSchema.parse(taskData);
 
-        const task = await storage.createTask({ groupId: taskData.groupId, title: taskData.title, description: taskData.description, dueDate: taskData.dueDate, taskType: "quiz" }, undefined);
-        
-        // Store questions
-        if (taskData.questions && taskData.questions.length > 0) {
-          for (let i = 0; i < taskData.questions.length; i++) {
-            const q = taskData.questions[i];
-            await storage.createQuestion(task.id, q.questionText, q.questionType, q.options || null, q.correctAnswer, i);
+        try {
+          const task = await storage.createTask({ groupId: taskData.groupId, title: taskData.title, description: taskData.description, dueDate: taskData.dueDate, taskType: "quiz" }, undefined);
+          
+          // Store questions
+          if (taskData.questions && taskData.questions.length > 0) {
+            for (let i = 0; i < taskData.questions.length; i++) {
+              const q = taskData.questions[i];
+              await storage.createQuestion(task.id, q.questionText, q.questionType, q.options || null, q.correctAnswer, i);
+            }
           }
-        }
 
-        const fullTask = await storage.getTaskById(task.id);
-        return res.status(201).json(fullTask);
+          const fullTask = await storage.getTaskById(task.id);
+          return res.status(201).json(fullTask);
+        } catch (dbError: any) {
+          console.error("Quiz creation error:", dbError);
+          return res.status(500).json({ message: "Failed to create quiz: " + dbError.message });
+        }
       } else {
         return res.status(400).json({ message: "Invalid task type" });
       }
