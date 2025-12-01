@@ -239,10 +239,9 @@ export class SQLiteStorage implements IStorage {
       const stmt = db.prepare(`
         SELECT 
           g.id, g.name, g.owner_id as ownerId, g.join_code as joinCode,
-          u.name as ownerName,
+          '' as ownerName,
           (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as memberCount
         FROM groups g
-        JOIN users u ON g.owner_id = u.id
         WHERE g.owner_id = ?
         ORDER BY g.name
       `);
@@ -251,11 +250,10 @@ export class SQLiteStorage implements IStorage {
       const stmt = db.prepare(`
         SELECT 
           g.id, g.name, g.owner_id as ownerId, g.join_code as joinCode,
-          u.name as ownerName,
+          '' as ownerName,
           (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as memberCount
         FROM groups g
         JOIN group_members gm ON g.id = gm.group_id
-        JOIN users u ON g.owner_id = u.id
         WHERE gm.user_id = ?
         ORDER BY g.name
       `);
