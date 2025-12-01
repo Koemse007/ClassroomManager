@@ -192,21 +192,30 @@ export default function TaskForm() {
         });
         return;
       }
+      if (q.questionType === "multiple_choice") {
+        const opts = JSON.parse(q.options || '["","","",""]');
+        const nonEmpty = opts.filter((o: string) => o.trim());
+        if (nonEmpty.length < 2) {
+          toast({
+            title: "Insufficient options",
+            description: "Multiple choice questions need at least 2 options",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     const questions = quizQuestions.map(({ tempId, id, taskId, ...q }) => {
-      // Parse and validate MC options
       if (q.questionType === "multiple_choice" && typeof q.options === "string") {
         try {
-          q.options = JSON.stringify(JSON.parse(q.options));
+          const parsed = JSON.parse(q.options);
+          return { ...q, options: JSON.stringify(parsed), order: q.order };
         } catch {
-          q.options = JSON.stringify(q.options.split('\n').filter(o => o.trim()));
+          return { ...q, order: q.order };
         }
       }
-      return {
-        ...q,
-        order: q.order,
-      };
+      return { ...q, options: q.questionType === "true_false" ? null : q.options, order: q.order };
     });
 
     createTaskMutation.mutate({ ...data, taskType: "quiz", questions });
@@ -534,7 +543,7 @@ export default function TaskForm() {
                           </Select>
                         </div>
 
-                        {/* Multiple Choice Options */}
+                        {/* Multiple Choice Options - Only show for MC type */}
                         {question.questionType === "multiple_choice" && (
                           <div className="space-y-3">
                             <label className="text-sm font-medium">Answer Options</label>
