@@ -165,80 +165,50 @@ export default function TaskForm() {
   };
 
   const handleSubmitQuiz = (data: any) => {
-    console.log("🚀 [FORM] Quiz submission started");
-    console.log("   Questions count:", quizQuestions.length);
-    
     if (quizQuestions.length === 0) {
       toast({
         title: "No questions",
         description: "Please add at least one question",
         variant: "destructive",
       });
-      console.log("✗ [FORM] No questions added");
       return;
     }
 
-    // Validate all questions have content
+    // Validate questions
     for (let idx = 0; idx < quizQuestions.length; idx++) {
       const q = quizQuestions[idx];
-      console.log(`   Validating question ${idx + 1}...`);
       
       if (!q.questionText.trim()) {
         toast({
-          title: `Question ${idx + 1}: Empty text`,
+          title: `Question ${idx + 1}: Empty`,
           description: "All questions must have text",
           variant: "destructive",
         });
-        console.log(`✗ [FORM] Question ${idx + 1} has no text`);
         return;
       }
       
       if (!q.correctAnswer) {
         toast({
-          title: `Question ${idx + 1}: No answer selected`,
-          description: "All questions must have a correct answer selected",
+          title: `Question ${idx + 1}: No answer`,
+          description: "Select a correct answer",
           variant: "destructive",
         });
-        console.log(`✗ [FORM] Question ${idx + 1} has no correct answer`);
         return;
       }
       
-      try {
-        const opts = JSON.parse(q.options || '["","","",""]');
-        const nonEmpty = opts.filter((o: string) => o.trim());
-        if (nonEmpty.length < 2) {
-          toast({
-            title: `Question ${idx + 1}: Not enough options`,
-            description: "Questions need at least 2 options (A, B, etc.)",
-            variant: "destructive",
-          });
-          console.log(`✗ [FORM] Question ${idx + 1} has only ${nonEmpty.length} option(s)`);
-          return;
-        }
-        console.log(`✓ [FORM] Question ${idx + 1} valid: "${q.questionText.substring(0, 40)}..."`);
-      } catch (parseError) {
-        console.error(`✗ [FORM] Question ${idx + 1} parse error:`, parseError);
+      const opts = JSON.parse(q.options || '["","","",""]');
+      const nonEmpty = opts.filter((o: string) => o.trim());
+      if (nonEmpty.length < 2) {
         toast({
-          title: `Question ${idx + 1}: Invalid options format`,
+          title: `Question ${idx + 1}: Need 2+ options`,
           variant: "destructive",
         });
         return;
       }
     }
 
-    const questions = quizQuestions.map(({ tempId, id, taskId, ...q }) => {
-      try {
-        const opts = JSON.parse(q.options || '["","","",""]');
-        return { ...q, options: JSON.stringify(opts), order: q.order };
-      } catch (e) {
-        console.error("Parse error for question options:", e);
-        return { ...q, order: q.order };
-      }
-    });
-
-    console.log("✓ [FORM] All validation passed. Submitting...");
-    console.log("   Data to send:", { title: data.title, description: data.description, dueDate: data.dueDate, questionsCount: questions.length });
-    
+    // Prepare questions for submission
+    const questions = quizQuestions.map(({ tempId, ...q }) => q);
     createTaskMutation.mutate({ ...data, taskType: "quiz", questions });
   };
 
