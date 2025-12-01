@@ -36,6 +36,7 @@ import {
   Calendar,
   Plus,
   Trash2,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -49,12 +50,14 @@ export default function TaskForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [quizQuestions, setQuizQuestions] = useState<(Question & { tempId: string })[]>([]);
 
+  const defaultDateTime = format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd'T'HH:mm");
+
   const textForm = useForm({
     resolver: zodResolver(insertTextTaskSchema.omit({ groupId: true })),
     defaultValues: {
       title: "",
       description: "",
-      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
+      dueDate: defaultDateTime,
     },
   });
 
@@ -63,7 +66,7 @@ export default function TaskForm() {
     defaultValues: {
       title: "",
       description: "",
-      dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
+      dueDate: defaultDateTime,
       questions: [],
     },
   });
@@ -124,7 +127,7 @@ export default function TaskForm() {
         taskId: "",
         questionText: "",
         questionType: "multiple_choice",
-        options: "",
+        options: JSON.stringify(["", "", "", ""]),
         correctAnswer: "",
         order: quizQuestions.length,
         tempId: Math.random().toString(),
@@ -144,6 +147,19 @@ export default function TaskForm() {
     );
   };
 
+  const handleUpdateMCOption = (tempId: string, optionIndex: number, value: string) => {
+    setQuizQuestions(
+      quizQuestions.map((q) => {
+        if (q.tempId === tempId) {
+          const opts = JSON.parse(q.options || '["","","",""]');
+          opts[optionIndex] = value;
+          return { ...q, options: JSON.stringify(opts) };
+        }
+        return q;
+      })
+    );
+  };
+
   const handleSubmitText = (data: any) => {
     createTaskMutation.mutate({ ...data, taskType: "text_file" });
   };
@@ -158,10 +174,40 @@ export default function TaskForm() {
       return;
     }
 
-    const questions = quizQuestions.map(({ tempId, id, taskId, ...q }) => ({
-      ...q,
-      order: q.order,
-    }));
+    // Validate all questions have content
+    for (const q of quizQuestions) {
+      if (!q.questionText.trim()) {
+        toast({
+          title: "Empty question",
+          description: "All questions must have text",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (!q.correctAnswer) {
+        toast({
+          title: "Missing correct answer",
+          description: "All questions must have a correct answer selected",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const questions = quizQuestions.map(({ tempId, id, taskId, ...q }) => {
+      // Parse and validate MC options
+      if (q.questionType === "multiple_choice" && typeof q.options === "string") {
+        try {
+          q.options = JSON.stringify(JSON.parse(q.options));
+        } catch {
+          q.options = JSON.stringify(q.options.split('\n').filter(o => o.trim()));
+        }
+      }
+      return {
+        ...q,
+        order: q.order,
+      };
+    });
 
     createTaskMutation.mutate({ ...data, taskType: "quiz", questions });
   };
@@ -181,9 +227,10 @@ export default function TaskForm() {
   };
 
   const isPending = createTaskMutation.isPending;
+  const answerLabels = ["A", "B", "C", "D"];
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+    <div className="p-6 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
         <Link href={`/groups/${groupId}`}>
           <Button variant="ghost" size="icon" data-testid="button-back">
@@ -274,12 +321,12 @@ export default function TaskForm() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>Due Date & Time</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                           <Input
-                            type="date"
+                            type="datetime-local"
                             className="pl-10"
                             data-testid="input-task-due-date"
                             {...field}
@@ -373,7 +420,7 @@ export default function TaskForm() {
                     <FormItem>
                       <FormLabel>Quiz Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Biology Quiz 1" {...field} />
+                        <Input placeholder="e.g., Biology Quiz 1" data-testid="input-quiz-title" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -390,6 +437,7 @@ export default function TaskForm() {
                         <Textarea
                           placeholder="Quiz instructions..."
                           className="min-h-[80px] resize-none"
+                          data-testid="input-quiz-description"
                           {...field}
                         />
                       </FormControl>
@@ -403,11 +451,16 @@ export default function TaskForm() {
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Due Date</FormLabel>
+                      <FormLabel>Due Date & Time</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input type="date" className="pl-10" {...field} />
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                          <Input 
+                            type="datetime-local" 
+                            className="pl-10" 
+                            data-testid="input-quiz-due-date"
+                            {...field} 
+                          />
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -415,37 +468,33 @@ export default function TaskForm() {
                   )}
                 />
 
-                {/* Questions Section */}
+                {/* Questions Section - Always visible */}
                 <div className="space-y-4 border-t pt-6">
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold">Questions ({quizQuestions.length})</h3>
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleAddQuestion}
-                      data-testid="button-add-question"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Question
-                    </Button>
                   </div>
 
+                  {quizQuestions.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No questions added yet</p>
+                  )}
+
                   {quizQuestions.map((question, idx) => (
-                    <Card key={question.tempId} className="p-4 bg-muted/50">
+                    <Card key={question.tempId} className="p-4 bg-muted/50 border">
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">Question {idx + 1}</span>
+                          <span className="font-medium text-sm">Question {idx + 1}</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => handleRemoveQuestion(question.tempId)}
-                            data-testid="button-remove-question"
+                            data-testid={`button-remove-question-${idx}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
 
+                        {/* Question Text */}
                         <div>
                           <label className="text-sm font-medium">Question Text</label>
                           <Textarea
@@ -459,13 +508,21 @@ export default function TaskForm() {
                           />
                         </div>
 
+                        {/* Question Type */}
                         <div>
                           <label className="text-sm font-medium">Question Type</label>
                           <Select
                             value={question.questionType}
-                            onValueChange={(value: any) =>
-                              handleUpdateQuestion(question.tempId, "questionType", value)
-                            }
+                            onValueChange={(value: any) => {
+                              handleUpdateQuestion(question.tempId, "questionType", value);
+                              // Reset correct answer when changing type
+                              handleUpdateQuestion(question.tempId, "correctAnswer", "");
+                              if (value === "multiple_choice") {
+                                handleUpdateQuestion(question.tempId, "options", JSON.stringify(["", "", "", ""]));
+                              } else {
+                                handleUpdateQuestion(question.tempId, "options", null);
+                              }
+                            }}
                           >
                             <SelectTrigger data-testid={`select-question-type-${idx}`}>
                               <SelectValue />
@@ -477,43 +534,89 @@ export default function TaskForm() {
                           </Select>
                         </div>
 
+                        {/* Multiple Choice Options */}
                         {question.questionType === "multiple_choice" && (
-                          <div>
-                            <label className="text-sm font-medium">Options (one per line)</label>
-                            <Textarea
-                              placeholder="Option A&#10;Option B&#10;Option C&#10;Option D"
-                              className="mt-1 resize-none"
-                              value={question.options || ""}
-                              onChange={(e) =>
-                                handleUpdateQuestion(question.tempId, "options", e.target.value)
+                          <div className="space-y-3">
+                            <label className="text-sm font-medium">Answer Options</label>
+                            {(() => {
+                              try {
+                                const opts = JSON.parse(question.options || '["","","",""]');
+                                return answerLabels.map((label, i) => (
+                                  <div key={i} className="flex gap-2 items-center">
+                                    <span className="font-semibold text-sm bg-secondary px-3 py-2 rounded min-w-[3rem] text-center">
+                                      {label}
+                                    </span>
+                                    <Input
+                                      placeholder={`Enter option ${label}...`}
+                                      value={opts[i] || ""}
+                                      onChange={(e) => handleUpdateMCOption(question.tempId, i, e.target.value)}
+                                      data-testid={`input-mc-option-${idx}-${i}`}
+                                    />
+                                  </div>
+                                ));
+                              } catch {
+                                return <p className="text-red-500 text-sm">Error loading options</p>;
                               }
-                              data-testid={`input-question-options-${idx}`}
-                            />
+                            })()}
                           </div>
                         )}
 
+                        {/* Correct Answer */}
                         <div>
                           <label className="text-sm font-medium">
                             {question.questionType === "multiple_choice"
-                              ? "Correct Option"
+                              ? "Correct Option (A/B/C/D)"
                               : "Correct Answer"}
                           </label>
-                          <Input
-                            placeholder={
-                              question.questionType === "multiple_choice"
-                                ? "e.g., Option A"
-                                : "True or False"
-                            }
-                            value={question.correctAnswer}
-                            onChange={(e) =>
-                              handleUpdateQuestion(question.tempId, "correctAnswer", e.target.value)
-                            }
-                            data-testid={`input-question-answer-${idx}`}
-                          />
+                          {question.questionType === "multiple_choice" ? (
+                            <Select
+                              value={question.correctAnswer}
+                              onValueChange={(value) =>
+                                handleUpdateQuestion(question.tempId, "correctAnswer", value)
+                              }
+                            >
+                              <SelectTrigger data-testid={`select-correct-answer-${idx}`}>
+                                <SelectValue placeholder="Select correct option" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="A">Option A</SelectItem>
+                                <SelectItem value="B">Option B</SelectItem>
+                                <SelectItem value="C">Option C</SelectItem>
+                                <SelectItem value="D">Option D</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Select
+                              value={question.correctAnswer}
+                              onValueChange={(value) =>
+                                handleUpdateQuestion(question.tempId, "correctAnswer", value)
+                              }
+                            >
+                              <SelectTrigger data-testid={`select-tf-answer-${idx}`}>
+                                <SelectValue placeholder="Select correct answer" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">True</SelectItem>
+                                <SelectItem value="false">False</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
                         </div>
                       </div>
                     </Card>
                   ))}
+
+                  {/* Add Question Button Inside Form */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddQuestion}
+                    className="w-full"
+                    data-testid="button-add-question"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Question
+                  </Button>
                 </div>
 
                 <div className="flex justify-end gap-3 pt-4">
