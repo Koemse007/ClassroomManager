@@ -3,6 +3,9 @@ import { z } from "zod";
 export const userRoles = ["teacher", "student"] as const;
 export type UserRole = (typeof userRoles)[number];
 
+export const taskTypes = ["text_file", "multiple_choice", "true_false"] as const;
+export type TaskType = (typeof taskTypes)[number];
+
 export const users = {
   id: "text",
   name: "text",
@@ -29,8 +32,11 @@ export const tasks = {
   groupId: "text",
   title: "text",
   description: "text",
+  taskType: "text",
   dueDate: "text",
   fileUrl: "text",
+  options: "text",
+  correctAnswer: "text",
 };
 
 export const submissions = {
@@ -39,8 +45,19 @@ export const submissions = {
   studentId: "text",
   textContent: "text",
   fileUrl: "text",
+  selectedAnswer: "text",
   submittedAt: "text",
   score: "integer",
+};
+
+export const announcements = {
+  id: "text",
+  groupId: "text",
+  teacherId: "text",
+  message: "text",
+  createdAt: "text",
+  isRead: "text",
+  studentId: "text",
 };
 
 export const insertUserSchema = z.object({
@@ -67,12 +84,21 @@ export const insertTaskSchema = z.object({
   groupId: z.string(),
   title: z.string().min(2, "Title must be at least 2 characters"),
   description: z.string().min(1, "Description is required"),
+  taskType: z.enum(taskTypes),
   dueDate: z.string(),
+  options: z.string().optional(),
+  correctAnswer: z.string().optional(),
 });
 
 export const insertSubmissionSchema = z.object({
   taskId: z.string(),
   textContent: z.string().optional(),
+  selectedAnswer: z.string().optional(),
+});
+
+export const insertAnnouncementSchema = z.object({
+  groupId: z.string(),
+  message: z.string().min(1, "Message is required"),
 });
 
 export const updateScoreSchema = z.object({
@@ -85,6 +111,7 @@ export type InsertGroup = z.infer<typeof insertGroupSchema>;
 export type JoinGroup = z.infer<typeof joinGroupSchema>;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
+export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type UpdateScore = z.infer<typeof updateScoreSchema>;
 
 export interface User {
@@ -113,8 +140,11 @@ export interface Task {
   groupId: string;
   title: string;
   description: string;
+  taskType: TaskType;
   dueDate: string;
   fileUrl: string | null;
+  options: string | null;
+  correctAnswer: string | null;
 }
 
 export interface Submission {
@@ -123,8 +153,22 @@ export interface Submission {
   studentId: string;
   textContent: string | null;
   fileUrl: string | null;
+  selectedAnswer: string | null;
   submittedAt: string;
   score: number | null;
+}
+
+export interface Announcement {
+  id: string;
+  groupId: string;
+  teacherId: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface AnnouncementWithTeacher extends Announcement {
+  teacherName: string;
+  isRead: boolean;
 }
 
 export interface GroupWithMembers extends Group {
@@ -136,7 +180,7 @@ export interface TaskWithSubmissionStatus extends Task {
   submissionStatus?: "not_submitted" | "submitted" | "graded";
   submissionCount?: number;
   totalStudents?: number;
-  score?: number | null;lo
+  score?: number | null;
 }
 
 export interface SubmissionWithStudent extends Submission {

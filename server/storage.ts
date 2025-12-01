@@ -7,11 +7,13 @@ import type {
   GroupMember,
   Task,
   Submission,
+  Announcement,
+  AnnouncementWithTeacher,
   InsertUser,
   InsertGroup,
   InsertTask,
-  UpdateTask,
   InsertSubmission,
+  InsertAnnouncement,
   GroupWithMembers,
   TaskWithSubmissionStatus,
   SubmissionWithStudent,
@@ -50,8 +52,11 @@ db.exec(`
     group_id TEXT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
+    task_type TEXT NOT NULL DEFAULT 'text_file' CHECK(task_type IN ('text_file', 'multiple_choice', 'true_false')),
     due_date TEXT NOT NULL,
     file_url TEXT,
+    options TEXT,
+    correct_answer TEXT,
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
   );
 
@@ -61,11 +66,31 @@ db.exec(`
     student_id TEXT NOT NULL,
     text_content TEXT,
     file_url TEXT,
+    selected_answer TEXT,
     submitted_at TEXT NOT NULL,
     score INTEGER,
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(task_id, student_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS announcements (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL,
+    teacher_id TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
+    FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS announcement_reads (
+    id TEXT PRIMARY KEY,
+    announcement_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    FOREIGN KEY (announcement_id) REFERENCES announcements(id) ON DELETE SET NULL,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(announcement_id, student_id)
   );
 `);
 
@@ -97,7 +122,6 @@ export interface IStorage {
   createTask(task: InsertTask, fileUrl?: string): Promise<Task>;
   getTaskById(id: string): Promise<Task | undefined>;
   getTasksForGroup(groupId: string, userId: string, role: string): Promise<TaskWithSubmissionStatus[]>;
-  updateTask(id: string, task: UpdateTask, fileUrl?: string | null): Promise<Task>;
   deleteTask(id: string): Promise<void>;
 
   createSubmission(submission: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission>;
@@ -112,6 +136,10 @@ export interface IStorage {
 
   getUnreadSubmissionCount(teacherId: string): Promise<number>;
   getUnreadTaskCount(studentId: string): Promise<number>;
+
+  createAnnouncement(announcement: InsertAnnouncement, teacherId: string): Promise<Announcement>;
+  getAnnouncementsForGroup(groupId: string, studentId?: string): Promise<AnnouncementWithTeacher[]>;
+  markAnnouncementAsRead(announcementId: string, studentId: string): Promise<void>;
 }
 
 export class SQLiteStorage implements IStorage {
