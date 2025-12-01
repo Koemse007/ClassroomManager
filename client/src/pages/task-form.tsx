@@ -12,6 +12,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Form,
   FormControl,
   FormDescription,
@@ -37,13 +44,17 @@ export default function TaskForm() {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [taskType, setTaskType] = useState<string>("text_file");
 
   const form = useForm<InsertTask>({
     resolver: zodResolver(insertTaskSchema.omit({ groupId: true })),
     defaultValues: {
       title: "",
       description: "",
+      taskType: "text_file",
       dueDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
+      options: "",
+      correctAnswer: "",
     },
   });
 
@@ -52,7 +63,10 @@ export default function TaskForm() {
       const formData = new FormData();
       formData.append("title", data.task.title);
       formData.append("description", data.task.description);
+      formData.append("taskType", data.task.taskType);
       formData.append("dueDate", data.task.dueDate);
+      if (data.task.options) formData.append("options", data.task.options);
+      if (data.task.correctAnswer) formData.append("correctAnswer", data.task.correctAnswer);
       if (data.file) {
         formData.append("file", data.file);
       }
@@ -131,6 +145,35 @@ export default function TaskForm() {
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
+                name="taskType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Task Type</FormLabel>
+                    <Select value={field.value} onValueChange={(value) => {
+                      field.onChange(value);
+                      setTaskType(value);
+                    }}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-task-type">
+                          <SelectValue placeholder="Select a task type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="text_file">Text Answer with File Upload</SelectItem>
+                        <SelectItem value="multiple_choice">Multiple Choice Question</SelectItem>
+                        <SelectItem value="true_false">True/False Question</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Choose the type of task for your students
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
@@ -168,6 +211,59 @@ export default function TaskForm() {
                   </FormItem>
                 )}
               />
+
+              {(taskType === "multiple_choice" || taskType === "true_false") && (
+                <>
+                  {taskType === "multiple_choice" && (
+                    <FormField
+                      control={form.control}
+                      name="options"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Options</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter options, one per line (e.g., Option A&#10;Option B&#10;Option C&#10;Option D)"
+                              className="min-h-[100px] resize-none"
+                              data-testid="input-task-options"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            List each option on a separate line
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name="correctAnswer"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {taskType === "multiple_choice" ? "Correct Option" : "Correct Answer"}
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder={taskType === "multiple_choice" ? "e.g., Option A" : "True or False"}
+                            data-testid="input-correct-answer"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {taskType === "multiple_choice" 
+                            ? "Enter the correct option exactly as listed above"
+                            : "Enter either 'True' or 'False'"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
 
               <FormField
                 control={form.control}
@@ -238,58 +334,60 @@ export default function TaskForm() {
                 }}
               />
 
-              <div className="space-y-2">
-                <FormLabel>Attachment (Optional)</FormLabel>
-                <div
-                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover-elevate"
-                  onClick={() => fileInputRef.current?.click()}
-                  data-testid="dropzone-file"
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
-                    data-testid="input-file"
-                  />
-                  {file ? (
-                    <div className="flex items-center justify-center gap-3">
-                      <FileText className="h-8 w-8 text-primary" />
-                      <div className="text-left">
-                        <p className="font-medium">
-                          {file.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB
-                        </p>
+              {taskType === "text_file" && (
+                <div className="space-y-2">
+                  <FormLabel>Attachment (Optional)</FormLabel>
+                  <div
+                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover-elevate"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-testid="dropzone-file"
+                  >
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+                      data-testid="input-file"
+                    />
+                    {file ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <FileText className="h-8 w-8 text-primary" />
+                        <div className="text-left">
+                          <p className="font-medium">
+                            {file.name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFile();
+                          }}
+                          data-testid="button-remove-file"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFile();
-                        }}
-                        data-testid="button-remove-file"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">
-                        Click to upload or drag and drop
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        PDF, DOC, DOCX, TXT, PNG, JPG up to 10MB
-                      </p>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">
+                          Click to upload or drag and drop
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          PDF, DOC, DOCX, TXT, PNG, JPG up to 10MB
+                        </p>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-4">
                 <Link href={`/groups/${groupId}`}>

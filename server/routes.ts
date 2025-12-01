@@ -581,6 +581,47 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/announcements", authenticateToken, requireTeacher, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const validatedData = insertAnnouncementSchema.parse(req.body);
+      
+      const group = await storage.getGroupById(validatedData.groupId);
+      if (!group || group.ownerId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const announcement = await storage.createAnnouncement(validatedData, req.user!.id);
+      res.status(201).json(announcement);
+    } catch (error: any) {
+      if (error.errors) {
+        return res.status(400).json({ message: error.errors[0]?.message || "Validation error" });
+      }
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/announcements/:groupId", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const group = await storage.getGroupById(req.params.groupId);
+      if (!group) {
+        return res.status(404).json({ message: "Group not found" });
+      }
+
+      const announcements = await storage.getAnnouncementsForGroup(req.params.groupId, req.user?.role === "student" ? req.user.id : undefined);
+      res.json(announcements);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/announcements/:announcementId/read", authenticateToken, requireStudent, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      await storage.markAnnouncementAsRead(req.params.announcementId, req.user!.id);
+      res.json({ message: "Marked as read" });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   return httpServer;
 }

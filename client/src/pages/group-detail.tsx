@@ -4,6 +4,7 @@ import { Link, useParams, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Announcements } from "@/components/announcements";
 import type { Group, TaskWithSubmissionStatus, User } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ import {
   Clock,
   XCircle,
   Eye,
+  Bell,
 } from "lucide-react";
 import { format, isPast, isToday, isTomorrow, differenceInDays } from "date-fns";
 
@@ -65,6 +67,7 @@ export default function GroupDetail() {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [removeStudentId, setRemoveStudentId] = useState<string | null>(null);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
 
   const isTeacher = user?.role === "teacher";
 
@@ -287,6 +290,16 @@ export default function GroupDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="relative">
+            <Button
+              variant={showAnnouncements ? "default" : "outline"}
+              onClick={() => setShowAnnouncements(!showAnnouncements)}
+              data-testid="button-messages"
+            >
+              <Bell className="h-4 w-4 mr-2" />
+              Announcements
+            </Button>
+          </div>
           {isOwner ? (
             <>
               <Link href={`/groups/${id}/tasks/new`} asChild>
@@ -316,6 +329,12 @@ export default function GroupDetail() {
           )}
         </div>
       </div>
+
+      {showAnnouncements && (
+        <div>
+          <Announcements groupId={id!} isTeacher={isTeacher} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
