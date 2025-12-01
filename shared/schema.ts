@@ -97,11 +97,11 @@ export const joinGroupSchema = z.object({
 });
 
 export const questionSchema = z.object({
-  questionText: z.string(),
+  questionText: z.string().min(1),
   questionType: z.string(),
   options: z.string().optional(),
-  correctAnswer: z.string(),
-}).passthrough();
+  correctAnswer: z.string().min(1),
+});
 
 export const insertTextTaskSchema = z.object({
   groupId: z.string(),
@@ -113,12 +113,12 @@ export const insertTextTaskSchema = z.object({
 
 export const insertQuizTaskSchema = z.object({
   groupId: z.string(),
-  title: z.string(),
-  description: z.string(),
+  title: z.string().min(2),
+  description: z.string().min(1),
   dueDate: z.string(),
   taskType: z.literal("quiz"),
-  questions: z.array(questionSchema),
-}).passthrough();
+  questions: z.array(questionSchema).min(1),
+});
 
 export const insertSubmissionSchema = z.object({
   taskId: z.string(),
