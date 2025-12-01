@@ -347,69 +347,19 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const taskType = req.body.taskType || "text_file";
+      const taskData = {
+        groupId: req.params.groupId,
+        title: req.body.title,
+        description: req.body.description,
+        dueDate: req.body.dueDate,
+        taskType: "text_file" as const,
+      };
 
-      if (taskType === "text_file") {
-        const taskData = {
-          groupId: req.params.groupId,
-          title: req.body.title,
-          description: req.body.description,
-          dueDate: req.body.dueDate,
-          taskType: "text_file" as const,
-        };
+      insertTextTaskSchema.parse(taskData);
 
-        insertTextTaskSchema.parse(taskData);
-
-        const fileUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
-        const task = await storage.createTask(taskData, fileUrl);
-        return res.status(201).json(task);
-      } else if (taskType === "quiz") {
-        try {
-          // Get questions from FormData
-          const questionsRaw = req.body.questions;
-          let questions = [];
-          if (typeof questionsRaw === "string") {
-            questions = JSON.parse(questionsRaw);
-          } else if (Array.isArray(questionsRaw)) {
-            questions = questionsRaw;
-          }
-
-          if (!Array.isArray(questions) || questions.length === 0) {
-            return res.status(400).json({ message: "No questions provided" });
-          }
-
-          // Create the quiz task
-          const task = await storage.createTask({
-            groupId: req.params.groupId,
-            title: req.body.title,
-            description: req.body.description,
-            dueDate: req.body.dueDate,
-            taskType: "quiz"
-          }, undefined);
-
-          // Store each question
-          for (let i = 0; i < questions.length; i++) {
-            const q = questions[i];
-            await storage.createQuestion(
-              task.id,
-              q.questionText || "",
-              q.questionType || "multiple_choice",
-              q.options ? JSON.stringify(q.options) : null,
-              q.correctAnswer || "",
-              i
-            );
-          }
-
-          // Return the task
-          const fullTask = await storage.getTaskById(task.id);
-          return res.status(201).json(fullTask);
-        } catch (err: any) {
-          console.error("Quiz error:", err);
-          return res.status(500).json({ message: err.message || "Failed to create quiz" });
-        }
-      } else {
-        return res.status(400).json({ message: "Invalid task type" });
-      }
+      const fileUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
+      const task = await storage.createTask(taskData, fileUrl);
+      return res.status(201).json(task);
     } catch (error: any) {
       if (error.errors) {
         return res.status(400).json({ message: error.errors[0]?.message || "Validation error" });
