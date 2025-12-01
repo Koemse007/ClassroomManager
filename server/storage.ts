@@ -55,21 +55,10 @@ db.exec(`
     group_id TEXT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
-    task_type TEXT NOT NULL DEFAULT 'text_file' CHECK(task_type IN ('text_file', 'quiz')),
+    task_type TEXT NOT NULL DEFAULT 'text_file' CHECK(task_type IN ('text_file')),
     due_date TEXT NOT NULL,
     file_url TEXT,
     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS questions (
-    id TEXT PRIMARY KEY,
-    task_id TEXT NOT NULL,
-    question_text TEXT NOT NULL,
-    question_type TEXT NOT NULL CHECK(question_type IN ('multiple_choice')),
-    options TEXT,
-    correct_answer TEXT NOT NULL,
-    question_order INTEGER,
-    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS submissions (
@@ -83,16 +72,6 @@ db.exec(`
     FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(task_id, student_id)
-  );
-
-  CREATE TABLE IF NOT EXISTS question_responses (
-    id TEXT PRIMARY KEY,
-    submission_id TEXT NOT NULL,
-    question_id TEXT NOT NULL,
-    answer TEXT NOT NULL,
-    is_correct INTEGER,
-    FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
-    FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS announcements (
@@ -154,8 +133,6 @@ export interface IStorage {
   getTaskById(id: string): Promise<Task | undefined>;
   getTasksForGroup(groupId: string, userId: string, role: string): Promise<TaskWithSubmissionStatus[]>;
   deleteTask(id: string): Promise<void>;
-  createQuestion(taskId: string, questionText: string, questionType: string, options: string | null, correctAnswer: string, order: number): Promise<any>;
-  getQuestions(taskId: string): Promise<any[]>;
 
   createSubmission(submission: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission>;
   getSubmissionById(id: string): Promise<Submission | undefined>;

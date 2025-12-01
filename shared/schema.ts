@@ -3,11 +3,8 @@ import { z } from "zod";
 export const userRoles = ["teacher", "student"] as const;
 export type UserRole = (typeof userRoles)[number];
 
-export const taskTypes = ["text_file", "quiz"] as const;
+export const taskTypes = ["text_file"] as const;
 export type TaskType = (typeof taskTypes)[number];
-
-export const questionTypes = ["multiple_choice", "true_false"] as const;
-export type QuestionType = (typeof questionTypes)[number];
 
 export const users = {
   id: "text",
@@ -40,16 +37,6 @@ export const tasks = {
   fileUrl: "text",
 };
 
-export const questions = {
-  id: "text",
-  taskId: "text",
-  questionText: "text",
-  questionType: "text",
-  options: "text",
-  correctAnswer: "text",
-  order: "integer",
-};
-
 export const submissions = {
   id: "text",
   taskId: "text",
@@ -58,14 +45,6 @@ export const submissions = {
   fileUrl: "text",
   submittedAt: "text",
   score: "integer",
-};
-
-export const questionResponses = {
-  id: "text",
-  submissionId: "text",
-  questionId: "text",
-  answer: "text",
-  isCorrect: "text",
 };
 
 export const announcements = {
@@ -96,13 +75,6 @@ export const joinGroupSchema = z.object({
   joinCode: z.string().min(6, "Join code must be 6 characters").max(6),
 });
 
-export const questionSchema = z.object({
-  questionText: z.string().min(1),
-  questionType: z.string(),
-  options: z.string().optional(),
-  correctAnswer: z.string().min(1),
-});
-
 export const insertTextTaskSchema = z.object({
   groupId: z.string(),
   title: z.string().min(2, "Title must be at least 2 characters"),
@@ -111,22 +83,9 @@ export const insertTextTaskSchema = z.object({
   taskType: z.literal("text_file").default("text_file"),
 });
 
-export const insertQuizTaskSchema = z.object({
-  groupId: z.string(),
-  title: z.string().min(2),
-  description: z.string().min(1),
-  dueDate: z.string(),
-  taskType: z.literal("quiz"),
-  questions: z.array(questionSchema).min(1),
-});
-
 export const insertSubmissionSchema = z.object({
   taskId: z.string(),
   textContent: z.string().optional(),
-  answers: z.array(z.object({
-    questionId: z.string(),
-    answer: z.string(),
-  })).optional(),
 });
 
 export const insertAnnouncementSchema = z.object({
@@ -142,9 +101,7 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginCredentials = z.infer<typeof loginSchema>;
 export type InsertGroup = z.infer<typeof insertGroupSchema>;
 export type JoinGroup = z.infer<typeof joinGroupSchema>;
-export type Question = z.infer<typeof questionSchema>;
 export type InsertTextTask = z.infer<typeof insertTextTaskSchema>;
-export type InsertQuizTask = z.infer<typeof insertQuizTaskSchema>;
 export type InsertSubmission = z.infer<typeof insertSubmissionSchema>;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
 export type UpdateScore = z.infer<typeof updateScoreSchema>;
@@ -180,16 +137,6 @@ export interface Task {
   fileUrl: string | null;
 }
 
-export interface QuestionItem {
-  id: string;
-  taskId: string;
-  questionText: string;
-  questionType: QuestionType;
-  options: string | null;
-  correctAnswer: string;
-  order: number;
-}
-
 export interface Submission {
   id: string;
   taskId: string;
@@ -198,14 +145,6 @@ export interface Submission {
   fileUrl: string | null;
   submittedAt: string;
   score: number | null;
-}
-
-export interface QuestionResponse {
-  id: string;
-  submissionId: string;
-  questionId: string;
-  answer: string;
-  isCorrect: boolean;
 }
 
 export interface Announcement {
@@ -231,7 +170,6 @@ export interface TaskWithSubmissionStatus extends Task {
   submissionCount?: number;
   totalStudents?: number;
   score?: number | null;
-  questions?: QuestionItem[];
 }
 
 export interface SubmissionWithStudent extends Submission {
