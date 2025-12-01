@@ -355,7 +355,7 @@ export class SQLiteStorage implements IStorage {
   async getTaskById(id: string): Promise<Task | undefined> {
     const stmt = db.prepare(`
       SELECT id, group_id as groupId, title, description, task_type as taskType, due_date as dueDate, 
-             file_url as fileUrl, options, correct_answer as correctAnswer
+             file_url as fileUrl
       FROM tasks WHERE id = ?
     `);
     return stmt.get(id) as Task | undefined;
@@ -366,7 +366,7 @@ export class SQLiteStorage implements IStorage {
       const stmt = db.prepare(`
         SELECT 
           t.id, t.group_id as groupId, t.title, t.description, t.task_type as taskType, t.due_date as dueDate, 
-          t.file_url as fileUrl, t.options, t.correct_answer as correctAnswer,
+          t.file_url as fileUrl,
           (SELECT COUNT(*) FROM submissions WHERE task_id = t.id) as submissionCount,
           (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id) as totalStudents
         FROM tasks t
@@ -378,7 +378,7 @@ export class SQLiteStorage implements IStorage {
       const stmt = db.prepare(`
         SELECT 
           t.id, t.group_id as groupId, t.title, t.description, t.task_type as taskType, t.due_date as dueDate, 
-          t.file_url as fileUrl, t.options, t.correct_answer as correctAnswer,
+          t.file_url as fileUrl,
           CASE 
             WHEN s.score IS NOT NULL THEN 'graded'
             WHEN s.id IS NOT NULL THEN 'submitted'
@@ -414,8 +414,8 @@ export class SQLiteStorage implements IStorage {
     const submittedAt = new Date().toISOString();
     
     const stmt = db.prepare(`
-      INSERT INTO submissions (id, task_id, student_id, text_content, file_url, selected_answer, submitted_at, score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
+      INSERT INTO submissions (id, task_id, student_id, text_content, file_url, submitted_at, score)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
     `);
     stmt.run(
       id,
@@ -423,7 +423,6 @@ export class SQLiteStorage implements IStorage {
       studentId,
       submissionData.textContent || null,
       fileUrl || null,
-      submissionData.selectedAnswer || null,
       submittedAt
     );
     
@@ -433,7 +432,6 @@ export class SQLiteStorage implements IStorage {
       studentId,
       textContent: submissionData.textContent || null,
       fileUrl: fileUrl || null,
-      selectedAnswer: submissionData.selectedAnswer || null,
       submittedAt,
       score: null,
     };
@@ -473,9 +471,9 @@ export class SQLiteStorage implements IStorage {
   async getAllSubmissionsForTeacher(teacherId: string): Promise<(SubmissionWithStudent & { taskTitle: string; groupName: string; taskId: string })[]> {
     const stmt = db.prepare(`
       SELECT s.id, s.task_id as taskId, s.student_id as studentId, s.text_content as textContent,
-             s.file_url as fileUrl, s.selected_answer as selectedAnswer, s.submitted_at as submittedAt, s.score,
+             s.file_url as fileUrl, s.submitted_at as submittedAt, s.score,
              u.name as studentName, u.email as studentEmail,
-             t.title as taskTitle, t.id as taskId,
+             t.title as taskTitle,
              g.name as groupName
       FROM submissions s
       JOIN users u ON s.student_id = u.id
@@ -537,7 +535,7 @@ export class SQLiteStorage implements IStorage {
     const stmt = db.prepare(`
       SELECT 
         t.id, t.group_id as groupId, t.title, t.description, t.task_type as taskType, t.due_date as dueDate, 
-        t.file_url as fileUrl, t.options, t.correct_answer as correctAnswer,
+        t.file_url as fileUrl,
         CASE 
           WHEN s.score IS NOT NULL THEN 'graded'
           WHEN s.id IS NOT NULL THEN 'submitted'
@@ -558,7 +556,7 @@ export class SQLiteStorage implements IStorage {
     const stmt = db.prepare(`
       SELECT 
         t.id, t.group_id as groupId, t.title, t.description, t.task_type as taskType, t.due_date as dueDate, 
-        t.file_url as fileUrl, t.options, t.correct_answer as correctAnswer,
+        t.file_url as fileUrl,
         g.name as groupName,
         CASE 
           WHEN s.score IS NOT NULL THEN 'graded'

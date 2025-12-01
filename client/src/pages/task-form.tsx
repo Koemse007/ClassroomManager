@@ -579,10 +579,21 @@ export default function TaskForm() {
                                 <SelectValue placeholder="Select correct option" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="A">Option A</SelectItem>
-                                <SelectItem value="B">Option B</SelectItem>
-                                <SelectItem value="C">Option C</SelectItem>
-                                <SelectItem value="D">Option D</SelectItem>
+                                {(() => {
+                                  try {
+                                    const opts = JSON.parse(question.options || '["","","",""]');
+                                    return answerLabels
+                                      .map((label, i) => ({ label, text: opts[i] }))
+                                      .filter(opt => opt.text?.trim())
+                                      .map(opt => (
+                                        <SelectItem key={opt.label} value={opt.label}>
+                                          Option {opt.label}: {opt.text}
+                                        </SelectItem>
+                                      ));
+                                  } catch {
+                                    return <SelectItem value="">Error loading options</SelectItem>;
+                                  }
+                                })()}
                               </SelectContent>
                             </Select>
                           ) : (
