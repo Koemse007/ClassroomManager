@@ -6,7 +6,7 @@ export type UserRole = (typeof userRoles)[number];
 export const taskTypes = ["text_file", "quiz"] as const;
 export type TaskType = (typeof taskTypes)[number];
 
-export const questionTypes = ["multiple_choice"] as const;
+export const questionTypes = ["multiple_choice", "true_false"] as const;
 export type QuestionType = (typeof questionTypes)[number];
 
 export const users = {

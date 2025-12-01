@@ -65,7 +65,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     task_id TEXT NOT NULL,
     question_text TEXT NOT NULL,
-    question_type TEXT NOT NULL CHECK(question_type IN ('multiple_choice', 'true_false')),
+    question_type TEXT NOT NULL CHECK(question_type IN ('multiple_choice')),
     options TEXT,
     correct_answer TEXT NOT NULL,
     question_order INTEGER,
