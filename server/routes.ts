@@ -364,20 +364,28 @@ export async function registerRoutes(
         const task = await storage.createTask(taskData, fileUrl);
         return res.status(201).json(task);
       } else if (taskType === "quiz") {
-        console.log("📝 [QUIZ] Attempting to create quiz task...");
+        console.log("\n📝 [QUIZ] ==================== QUIZ CREATION START ====================");
         console.log("   Group ID:", req.params.groupId);
         console.log("   Title:", req.body.title);
+        console.log("   Body keys:", Object.keys(req.body));
         
         let questionsData = [];
         
         // Parse questions JSON
         try {
-          questionsData = req.body.questions ? JSON.parse(req.body.questions) : [];
-          console.log("✓ [QUIZ] Successfully parsed questions JSON. Count:", questionsData.length);
+          if (typeof req.body.questions === "string") {
+            questionsData = JSON.parse(req.body.questions);
+          } else {
+            questionsData = req.body.questions || [];
+          }
+          console.log("✓ [QUIZ] Parsed questions. Count:", questionsData.length);
+          if (questionsData.length > 0) {
+            console.log("   First question:", questionsData[0]);
+          }
         } catch (parseError: any) {
-          console.error("✗ [QUIZ] Failed to parse questions JSON:", parseError.message);
+          console.error("✗ [QUIZ] JSON Parse failed:", parseError.message);
           return res.status(400).json({ 
-            message: "Invalid questions format. Must be valid JSON.",
+            message: "Invalid questions JSON format",
             error: parseError.message 
           });
         }
@@ -394,18 +402,16 @@ export async function registerRoutes(
         // Validate schema
         try {
           insertQuizTaskSchema.parse(taskData);
-          console.log("✓ [QUIZ] Schema validation passed");
+          console.log("✓ [QUIZ] Schema validation PASSED");
         } catch (validationError: any) {
-          console.error("✗ [QUIZ] Schema validation failed:", validationError.message);
-          const errorMessage = validationError.errors?.[0]?.message || validationError.message;
-          return res.status(400).json({ 
-            message: errorMessage,
-            details: "Please check your quiz data and try again"
-          });
+          console.error("✗ [QUIZ] Schema validation FAILED:", validationError);
+          const errMsg = validationError.errors?.[0]?.message || validationError.message;
+          console.error("   Error message:", errMsg);
+          return res.status(400).json({ message: errMsg });
         }
 
         try {
-          console.log("🔄 [QUIZ] Creating task in database...");
+          console.log("🔄 [QUIZ] Creating task...");
           const task = await storage.createTask({ 
             groupId: taskData.groupId, 
             title: taskData.title, 
@@ -414,41 +420,35 @@ export async function registerRoutes(
             taskType: "quiz" 
           }, undefined);
           
-          console.log("✓ [QUIZ] Task created. Task ID:", task.id);
+          console.log("✓ [QUIZ] Task created. ID:", task.id);
           
           // Store questions
-          if (taskData.questions && taskData.questions.length > 0) {
+          if (taskData.questions.length > 0) {
             console.log("🔄 [QUIZ] Storing", taskData.questions.length, "questions...");
             for (let i = 0; i < taskData.questions.length; i++) {
               const q = taskData.questions[i];
-              try {
-                console.log(`   📌 Question ${i + 1}/${taskData.questions.length}:`, q.questionText.substring(0, 50) + "...");
-                await storage.createQuestion(
-                  task.id, 
-                  q.questionText, 
-                  q.questionType, 
-                  q.options || null, 
-                  q.correctAnswer, 
-                  i
-                );
-              } catch (qError: any) {
-                console.error(`✗ [QUIZ] Failed to create question ${i + 1}:`, qError.message);
-                throw new Error(`Failed to create question ${i + 1}: ${qError.message}`);
-              }
+              console.log(`   Question ${i + 1}: "${q.questionText.substring(0, 40)}..."`);
+              await storage.createQuestion(
+                task.id, 
+                q.questionText, 
+                q.questionType, 
+                q.options || null, 
+                q.correctAnswer, 
+                i
+              );
+              console.log(`   ✓ Saved`);
             }
-            console.log("✓ [QUIZ] All questions stored successfully");
+            console.log("✓ [QUIZ] All questions saved");
           }
 
           const fullTask = await storage.getTaskById(task.id);
-          console.log("✓ [QUIZ] Quiz created successfully!");
+          console.log("✓ [QUIZ] ==================== QUIZ CREATION SUCCESS ====================\n");
           return res.status(201).json(fullTask);
         } catch (dbError: any) {
-          console.error("✗ [QUIZ] Database error during quiz creation:", dbError.message);
-          console.error("   Stack trace:", dbError.stack);
-          return res.status(500).json({ 
-            message: "Failed to create quiz: " + dbError.message,
-            error: process.env.NODE_ENV === "development" ? dbError.stack : undefined
-          });
+          console.error("✗ [QUIZ] DB Error:", dbError.message);
+          console.error("   Stack:", dbError.stack);
+          console.error("✗ [QUIZ] ==================== QUIZ CREATION FAILED ====================\n");
+          return res.status(500).json({ message: "Failed to create quiz: " + dbError.message });
         }
       } else {
         return res.status(400).json({ message: "Invalid task type" });
