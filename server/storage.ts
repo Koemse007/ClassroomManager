@@ -110,6 +110,16 @@ db.exec(`
     FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
     UNIQUE(announcement_id, student_id)
   );
+
+  CREATE TABLE IF NOT EXISTS reminder_dismissals (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    student_id TEXT NOT NULL,
+    dismissed_at TEXT NOT NULL,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(task_id, student_id)
+  );
 `);
 
 function generateJoinCode(): string {
@@ -703,6 +713,43 @@ export class SQLiteStorage implements IStorage {
       VALUES (?, ?, ?)
     `);
     stmt.run(id, announcementId, studentId);
+  }
+
+  async dismissReminderForTask(taskId: string, studentId: string): Promise<void> {
+    const id = randomUUID();
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO reminder_dismissals (id, task_id, student_id, dismissed_at)
+      VALUES (?, ?, ?, ?)
+    `);
+    stmt.run(id, taskId, studentId, new Date().toISOString());
+  }
+
+  async getUrgentTasksForStudent(studentId: string): Promise<TaskWithSubmissionStatus[]> {
+    const now = new Date();
+    const twelveHoursLater = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+    
+    const stmt = db.prepare(`
+      SELECT 
+        t.id, t.group_id as groupId, t.title, t.description, t.task_type as taskType, 
+        t.due_date as dueDate, t.file_url as fileUrl,
+        CASE 
+          WHEN s.id IS NOT NULL THEN 'submitted'
+          ELSE 'not_submitted'
+        END as submissionStatus
+      FROM tasks t
+      JOIN group_members gm ON t.group_id = gm.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id AND s.student_id = ?
+      LEFT JOIN reminder_dismissals rd ON t.id = rd.task_id AND rd.student_id = ?
+      WHERE gm.user_id = ?
+        AND s.id IS NULL
+        AND rd.id IS NULL
+        AND t.due_date IS NOT NULL
+        AND t.due_date <= ?
+        AND t.due_date > ?
+      ORDER BY t.due_date ASC
+    `);
+    
+    return stmt.all(studentId, studentId, studentId, twelveHoursLater.toISOString(), now.toISOString()) as TaskWithSubmissionStatus[];
   }
 
   async getAnalyticsForTeacher(teacherId: string): Promise<{
