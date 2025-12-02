@@ -3,7 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { storage } from "./storage";
-import { initializeDatabase } from "./migrations";
+import "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -63,9 +63,6 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Initialize database schema
-    await initializeDatabase();
-
     // Seed test users on startup
     const teacherExists = await storage.getUserByEmail("teprathna@gmail.com");
     if (!teacherExists) {

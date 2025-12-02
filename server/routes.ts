@@ -1,11 +1,12 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { supabase } from "./supabase";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import multer from "multer";
 import { randomUUID } from "crypto";
+import path from "path";
+import { fileURLToPath } from "url";
 import {
   insertUserSchema,
   loginSchema,
@@ -17,10 +18,20 @@ import {
   updateScoreSchema,
 } from "@shared/schema";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, "..", "uploads");
+
 const JWT_SECRET = process.env.SESSION_SECRET || "classroom-management-secret-key";
 
-// Use memory storage with Supabase upload
-const multerStorage = multer.memoryStorage();
+// Use disk storage for local uploads
+const multerStorage = multer.diskStorage({
+  destination: uploadsDir,
+  filename: (req, file, cb) => {
+    const uniqueName = `${randomUUID()}-${file.originalname}`;
+    cb(null, uniqueName);
+  },
+});
 
 const upload = multer({
   storage: multerStorage,
@@ -344,25 +355,10 @@ export async function registerRoutes(
 
       let fileUrl: string | undefined = undefined;
       if (req.file) {
-        try {
-          const fileName = `task-${randomUUID()}-${req.file.originalname}`;
-          const { data, error } = await supabase.storage
-            .from("task-attachments")
-            .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
-          
-          if (!error && data) {
-            const { data: publicData } = supabase.storage
-              .from("task-attachments")
-              .getPublicUrl(data.path);
-            fileUrl = publicData.publicUrl;
-          }
-        } catch (err) {
-          console.error("File upload error:", err);
-          // Continue without file if upload fails
-        }
+        fileUrl = `/uploads/${req.file.filename}`;
       }
 
-      const task = await storage.createTask(taskData, fileUrl);
+      const task = await storage.createTask(req.params.groupId, taskData, fileUrl);
       return res.status(201).json(task);
     } catch (error: any) {
       if (error.errors) {
@@ -490,22 +486,7 @@ export async function registerRoutes(
 
       let fileUrl: string | undefined = undefined;
       if (req.file) {
-        try {
-          const fileName = `submission-${randomUUID()}-${req.file.originalname}`;
-          const { data, error } = await supabase.storage
-            .from("submission-files")
-            .upload(fileName, req.file.buffer, { contentType: req.file.mimetype });
-          
-          if (!error && data) {
-            const { data: publicData } = supabase.storage
-              .from("submission-files")
-              .getPublicUrl(data.path);
-            fileUrl = publicData.publicUrl;
-          }
-        } catch (err) {
-          console.error("File upload error:", err);
-          // Continue without file if upload fails
-        }
+        fileUrl = `/uploads/${req.file.filename}`;
       }
 
       const submission = await storage.createSubmission(
@@ -647,7 +628,10 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Not authorized" });
       }
 
-      const announcement = await storage.createAnnouncement(validatedData, req.user!.id);
+      const announcement = await storage.createAnnouncement(
+        { groupId: validatedData.groupId, message: validatedData.message },
+        req.user!.id
+      );
       res.status(201).json(announcement);
     } catch (error: any) {
       if (error.errors) {
