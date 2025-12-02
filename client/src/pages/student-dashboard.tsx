@@ -92,7 +92,13 @@ export default function StudentDashboard() {
   };
 
   const getDueDateBadge = (dueDate: string) => {
-    const date = new Date(dueDate);
+    if (!dueDate || !dueDate.trim()) {
+      return <Badge variant="secondary" className="text-xs">No due date</Badge>;
+    }
+    const date = new Date(dueDate.trim());
+    if (isNaN(date.getTime())) {
+      return <Badge variant="secondary" className="text-xs">Invalid date</Badge>;
+    }
     if (isPast(date) && !isToday(date)) {
       return <Badge variant="destructive" className="text-xs">Overdue</Badge>;
     }
