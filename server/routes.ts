@@ -628,5 +628,38 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/announcements/unread/count", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const count = await storage.getUnreadAnnouncementCount(req.user!.id);
+      res.json({ unreadCount: count });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.get("/api/analytics/export-csv/:groupId", authenticateToken, requireTeacher, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const group = await storage.getGroupById(req.params.groupId);
+      if (!group || group.ownerId !== req.user!.id) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+
+      const submissions = await storage.getSubmissionsForTeacherByGroup(req.user!.id, req.params.groupId);
+      
+      let csv = "Task,Group,Student Name,Student Email,Submitted At,Score\n";
+      submissions.forEach((sub) => {
+        const score = sub.score !== null ? sub.score : "Not Graded";
+        const submitted = new Date(sub.submittedAt).toLocaleString();
+        csv += `"${sub.taskTitle}","${sub.groupName}","${sub.studentName}","${sub.studentEmail}","${submitted}","${score}"\n`;
+      });
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename="grades-report-${group.name}.csv"`);
+      res.send(csv);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return httpServer;
 }

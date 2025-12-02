@@ -760,6 +760,36 @@ export class SQLiteStorage implements IStorage {
 
     stmt.run(randomUUID(), announcementId, studentId, new Date().toISOString());
   }
+
+  async getUnreadAnnouncementCount(studentId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM announcements a
+      WHERE a.group_id IN (
+        SELECT group_id FROM group_members WHERE user_id = ?
+      )
+      AND a.id NOT IN (
+        SELECT announcement_id FROM announcement_reads WHERE student_id = ?
+      )
+    `);
+
+    const result = stmt.get(studentId, studentId) as { count: number };
+    return result.count;
+  }
+
+  async getSubmissionsForTeacherByGroup(teacherId: string, groupId: string): Promise<SubmissionWithStudent[]> {
+    const stmt = db.prepare(`
+      SELECT s.id, s.task_id as taskId, s.student_id as studentId, s.text_content as textContent, s.file_url as fileUrl, s.submitted_at as submittedAt, s.score,
+             u.name as studentName, u.email as studentEmail, t.title as taskTitle, g.name as groupName
+      FROM submissions s
+      JOIN users u ON s.student_id = u.id
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE t.group_id = ? AND g.owner_id = ?
+      ORDER BY s.submitted_at DESC
+    `);
+
+    return stmt.all(groupId, teacherId) as SubmissionWithStudent[];
+  }
 }
 
 export const storage = new SQLiteStorage();
