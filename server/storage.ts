@@ -230,30 +230,30 @@ export class SQLiteStorage implements IStorage {
   }
 
   async deleteGroup(id: string): Promise<void> {
-    // Check if group has active members
-    const memberCount = db.prepare(
-      "SELECT COUNT(*) as count FROM group_members WHERE group_id = ?"
-    ).get(id) as { count: number };
+    // Get all task IDs for this group
+    const tasks = db.prepare("SELECT id FROM tasks WHERE group_id = ?").all(id) as { id: string }[];
     
-    if (memberCount.count > 0) {
-      throw new Error("Cannot delete group with active members. Please remove all students first.");
+    // Delete submissions for all tasks in this group
+    for (const task of tasks) {
+      db.prepare("DELETE FROM submissions WHERE task_id = ?").run(task.id);
     }
     
-    // Check if group has submissions
-    const submissionCount = db.prepare(`
-      SELECT COUNT(*) as count FROM submissions s 
-      JOIN tasks t ON s.task_id = t.id 
-      WHERE t.group_id = ?
-    `).get(id) as { count: number };
+    // Delete announcement reads for announcements in this group
+    db.prepare(`
+      DELETE FROM announcement_reads 
+      WHERE announcement_id IN (SELECT id FROM announcements WHERE group_id = ?)
+    `).run(id);
     
-    if (submissionCount.count > 0) {
-      throw new Error("Cannot delete group with student submissions. Please contact administrator.");
-    }
-    
-    // Set NULL for foreign keys to preserve data (SET NULL instead of CASCADE DELETE)
+    // Update announcements to have NULL group_id (preserve announcement records)
     db.prepare("UPDATE announcements SET group_id = NULL WHERE group_id = ?").run(id);
+    
+    // Delete group members
     db.prepare("DELETE FROM group_members WHERE group_id = ?").run(id);
+    
+    // Delete tasks
     db.prepare("DELETE FROM tasks WHERE group_id = ?").run(id);
+    
+    // Delete the group itself
     db.prepare("DELETE FROM groups WHERE id = ?").run(id);
   }
 
