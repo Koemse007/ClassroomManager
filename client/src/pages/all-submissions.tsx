@@ -55,6 +55,11 @@ export default function AllSubmissions() {
     enabled: !!token,
   });
 
+  const { data: groups: allGroups } = useQuery<Array<{ id: string; name: string; ownerId: string }>>({
+    queryKey: ["/api/groups"],
+    enabled: !!token,
+  });
+
   const updateScoreMutation = useMutation({
     mutationFn: async ({ submissionId, score }: { submissionId: string; score: number }) => {
       return await apiRequest("PATCH", `/api/submissions/${submissionId}/score`, { score });
@@ -117,16 +122,8 @@ export default function AllSubmissions() {
   const gradedSubmissions = filteredSubmissions?.filter((s) => s.score !== null) || [];
   const pendingSubmissions = filteredSubmissions?.filter((s) => s.score === null) || [];
 
-  // Get group ID for CSV export
-  const groupsWithIds = submissions?.reduce((acc, sub) => {
-    if (!acc.find((g) => g.name === sub.groupName)) {
-      acc.push({ name: sub.groupName, id: sub.groupName });
-    }
-    return acc;
-  }, [] as Array<{ name: string; id: string }>);
-
   const getGroupIdByName = (groupName: string): string => {
-    return groupsWithIds?.find((g) => g.name === groupName)?.id || "";
+    return allGroups?.find((g) => g.name === groupName)?.id || "";
   };
 
   const handleExportCsv = () => {
