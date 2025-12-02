@@ -244,8 +244,8 @@ export class SQLiteStorage implements IStorage {
       WHERE announcement_id IN (SELECT id FROM announcements WHERE group_id = ?)
     `).run(id);
     
-    // Update announcements to have NULL group_id (preserve announcement records)
-    db.prepare("UPDATE announcements SET group_id = NULL WHERE group_id = ?").run(id);
+    // Delete announcements in this group
+    db.prepare("DELETE FROM announcements WHERE group_id = ?").run(id);
     
     // Delete group members
     db.prepare("DELETE FROM group_members WHERE group_id = ?").run(id);
