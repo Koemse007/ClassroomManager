@@ -8,32 +8,8 @@ import "./db";
 const app = express();
 const httpServer = createServer(app);
 
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: unknown;
-  }
-}
-
-app.use(
-  express.json({
-    verify: (req, _res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
-);
-
+app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-export function log(message: string, source = "express") {
-  const formattedTime = new Date().toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-  console.log(`${formattedTime} [${source}] ${message}`);
-}
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -47,14 +23,11 @@ app.use((req, res, next) => {
   };
 
   res.on("finish", () => {
-    const duration = Date.now() - start;
     if (path.startsWith("/api")) {
+      const duration = Date.now() - start;
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      log(logLine);
+      if (capturedJsonResponse) logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      console.log(logLine);
     }
   });
 
@@ -63,7 +36,6 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Seed test users on startup
     const teacherExists = await storage.getUserByEmail("teprathna@gmail.com");
     if (!teacherExists) {
       await storage.createUser({
@@ -72,7 +44,7 @@ app.use((req, res, next) => {
         password: "teacher123",
         role: "teacher",
       });
-      log("Created test teacher user: teprathna@gmail.com");
+      console.log("Created test teacher");
     }
 
     const studentExists = await storage.getUserByEmail("rathna@gmail.com");
@@ -83,22 +55,11 @@ app.use((req, res, next) => {
         password: "student123",
         role: "student",
       });
-      log("Created test student user: rathna@gmail.com");
+      console.log("Created test student");
     }
 
     await registerRoutes(httpServer, app);
 
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-
-      res.status(status).json({ message });
-      throw err;
-    });
-
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
     if (process.env.NODE_ENV === "production") {
       serveStatic(app);
     } else {
@@ -106,29 +67,13 @@ app.use((req, res, next) => {
       await setupVite(httpServer, app);
     }
 
-    // ALWAYS serve the app on the port specified in the environment variable PORT
-    // Other ports are firewalled. Default to 5000 if not specified.
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
     const port = parseInt(process.env.PORT || "5000", 10);
-    // Use localhost on Windows, 0.0.0.0 on Unix-like systems
     const host = process.platform === "win32" ? "localhost" : "0.0.0.0";
-    httpServer.listen(
-      {
-        port,
-        host,
-        reusePort: process.platform !== "win32", // reusePort not supported on Windows
-      },
-      () => {
-        log(`serving on port ${port}`);
-      },
-    );
+    httpServer.listen({ port, host, reusePort: process.platform !== "win32" }, () => {
+      console.log(`serving on port ${port}`);
+    });
   } catch (err: any) {
     console.error("Failed to start server:", err.message || err);
-    // Only exit if it's a critical error
-    if (err.code === "EADDRINUSE") {
-      process.exit(1);
-    }
-    // Otherwise allow app to continue with limited functionality
+    if (err.code === "EADDRINUSE") process.exit(1);
   }
 })();
