@@ -19,20 +19,12 @@ localPort = 33329
 externalPort = 3001
 
 [[ports]]
-localPort = 35229
-externalPort = 4200
-
-[[ports]]
 localPort = 40619
 externalPort = 3002
 
 [[ports]]
 localPort = 41833
 externalPort = 3003
-
-[[ports]]
-localPort = 43037
-externalPort = 5000
 
 [[ports]]
 localPort = 44605
@@ -61,9 +53,3 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
-
-[userenv]
-
-[userenv.shared]
-SUPABASE_URL = "https://fafdexkeiskssrklqhyr.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhZmRleGtlaXNrc3Nya2xxaHlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1Nzk1MDMsImV4cCI6MjA4MDE1NTUwM30.GxvLLNTyDYUAgosO8KO9uDyaTCawuf4VMWkoJPiqCdo"

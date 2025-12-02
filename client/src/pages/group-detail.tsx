@@ -86,6 +86,12 @@ export default function GroupDetail() {
     enabled: !!token && !!id,
   });
 
+  const { data: unreadCounts } = useQuery<{ announcements: number; submissions: number; tasks: number }>({
+    queryKey: ["/api/unread-counts"],
+    enabled: !!token,
+    refetchInterval: 5000,
+  });
+
   const isOwner = group?.ownerId === user?.id;
 
   const deleteGroupMutation = useMutation({
@@ -94,9 +100,6 @@ export default function GroupDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/submissions/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
       toast({
         title: "Group deleted",
         description: "The group has been permanently removed.",
@@ -118,9 +121,6 @@ export default function GroupDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/submissions/all"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/analytics"] });
       toast({
         title: "Left group",
         description: "You have left this group.",
@@ -216,8 +216,7 @@ export default function GroupDetail() {
     }
   };
 
-  const getInitials = (name?: string) => {
-    if (!name) return "NA";
+  const getInitials = (name: string) => {
     return name
       .split(" ")
       .map((n) => n[0])
@@ -304,8 +303,13 @@ export default function GroupDetail() {
               data-testid="button-messages"
             >
               <Bell className="h-4 w-4 mr-2" />
-              Announcements
+              Messages
             </Button>
+            {unreadCounts && unreadCounts.announcements > 0 && !isOwner && (
+              <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-red-500 hover:bg-red-600 text-xs font-bold">
+                {unreadCounts.announcements}
+              </Badge>
+            )}
           </div>
           {isOwner ? (
             <>

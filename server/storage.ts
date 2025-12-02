@@ -1,269 +1,697 @@
-import { db } from "./db";
-import { users, groups, groupMembers, tasks, submissions, announcements } from "./schema";
-import { eq, and, inArray } from "drizzle-orm";
-import bcrypt from "bcryptjs";
+import Database from "better-sqlite3";
 import { randomUUID } from "crypto";
-import type { User, InsertUser, Group, InsertGroup, Task, InsertTextTask, Submission, InsertSubmission, Announcement, InsertAnnouncement } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import type {
+  User,
+  Group,
+  GroupMember,
+  Task,
+  Submission,
+  InsertUser,
+  InsertGroup,
+  InsertTask,
+  UpdateTask,
+  InsertSubmission,
+  GroupWithMembers,
+  TaskWithSubmissionStatus,
+  SubmissionWithStudent,
+} from "@shared/schema";
 
-export class Storage {
-  async createUser(data: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values({
-      id: randomUUID(),
-      name: data.name,
-      email: data.email,
-      passwordHash: await bcrypt.hash(data.password, 10),
-      role: data.role,
-    }).returning();
-    return user as User;
+const db = new Database("classroom.db");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL CHECK(role IN ('teacher', 'student'))
+  );
+
+  CREATE TABLE IF NOT EXISTS groups (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    join_code TEXT NOT NULL UNIQUE,
+    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS group_members (
+    id TEXT PRIMARY KEY,
+    group_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(group_id, user_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    group_id TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    due_date TEXT NOT NULL,
+    file_url TEXT,
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS submissions (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    student_id TEXT NOT NULL,
+    text_content TEXT,
+    file_url TEXT,
+    submitted_at TEXT NOT NULL,
+    score INTEGER,
+    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(task_id, student_id)
+  );
+`);
+
+function generateJoinCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
   }
+  return code;
+}
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    return user as User | undefined;
+export interface IStorage {
+  createUser(user: InsertUser): Promise<User>;
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+
+  createGroup(ownerId: string, group: InsertGroup): Promise<Group>;
+  getGroupById(id: string): Promise<Group | undefined>;
+  getGroupByJoinCode(joinCode: string): Promise<Group | undefined>;
+  getGroupsForUser(userId: string, role: string): Promise<GroupWithMembers[]>;
+  deleteGroup(id: string): Promise<void>;
+
+  addMemberToGroup(groupId: string, userId: string): Promise<GroupMember>;
+  removeMemberFromGroup(groupId: string, userId: string): Promise<void>;
+  getGroupMembers(groupId: string): Promise<{ id: string; userId: string; name: string; email: string }[]>;
+  isMemberOfGroup(groupId: string, userId: string): Promise<boolean>;
+
+  createTask(task: InsertTask, fileUrl?: string): Promise<Task>;
+  getTaskById(id: string): Promise<Task | undefined>;
+  getTasksForGroup(groupId: string, userId: string, role: string): Promise<TaskWithSubmissionStatus[]>;
+  updateTask(id: string, task: UpdateTask, fileUrl?: string | null): Promise<Task>;
+  deleteTask(id: string): Promise<void>;
+
+  createSubmission(submission: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission>;
+  getSubmissionById(id: string): Promise<Submission | undefined>;
+  getSubmissionForTask(taskId: string, studentId: string): Promise<Submission | undefined>;
+  getSubmissionsForTask(taskId: string): Promise<SubmissionWithStudent[]>;
+  getAllSubmissionsForTeacher(teacherId: string): Promise<(SubmissionWithStudent & { taskTitle: string; groupName: string; taskId: string })[]>;
+  updateSubmissionScore(id: string, score: number): Promise<Submission>;
+
+  getTeacherStats(teacherId: string): Promise<{ pendingSubmissions: number; totalTasks: number }>;
+  getUpcomingTasksForStudent(studentId: string): Promise<TaskWithSubmissionStatus[]>;
+
+  getUnreadSubmissionCount(teacherId: string): Promise<number>;
+  getUnreadTaskCount(studentId: string): Promise<number>;
+}
+
+export class SQLiteStorage implements IStorage {
+  async createUser(userData: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const passwordHash = await bcrypt.hash(userData.password, 10);
+    
+    const stmt = db.prepare(`
+      INSERT INTO users (id, name, email, password_hash, role)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    stmt.run(id, userData.name, userData.email, passwordHash, userData.role);
+    
+    return {
+      id,
+      name: userData.name,
+      email: userData.email,
+      passwordHash,
+      role: userData.role,
+    };
   }
 
   async getUserById(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    return user as User | undefined;
+    const stmt = db.prepare("SELECT id, name, email, password_hash as passwordHash, role FROM users WHERE id = ?");
+    return stmt.get(id) as User | undefined;
   }
 
-  async createGroup(ownerId: string, data: InsertGroup): Promise<Group> {
-    const [group] = await db.insert(groups).values({
-      id: randomUUID(),
-      name: data.name,
-      ownerId,
-      joinCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-    }).returning();
-    return group as Group;
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const stmt = db.prepare("SELECT id, name, email, password_hash as passwordHash, role FROM users WHERE email = ?");
+    return stmt.get(email) as User | undefined;
+  }
+
+  async createGroup(ownerId: string, groupData: InsertGroup): Promise<Group> {
+    const id = randomUUID();
+    let joinCode = generateJoinCode();
+    
+    while (await this.getGroupByJoinCode(joinCode)) {
+      joinCode = generateJoinCode();
+    }
+    
+    const stmt = db.prepare(`
+      INSERT INTO groups (id, name, owner_id, join_code)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    stmt.run(id, groupData.name, ownerId, joinCode);
+    
+    return { id, name: groupData.name, ownerId, joinCode };
   }
 
   async getGroupById(id: string): Promise<Group | undefined> {
-    const [group] = await db.select().from(groups).where(eq(groups.id, id)).limit(1);
-    return group as Group | undefined;
+    const stmt = db.prepare("SELECT id, name, owner_id as ownerId, join_code as joinCode FROM groups WHERE id = ?");
+    return stmt.get(id) as Group | undefined;
   }
 
   async getGroupByJoinCode(joinCode: string): Promise<Group | undefined> {
-    const [group] = await db.select().from(groups).where(eq(groups.joinCode, joinCode)).limit(1);
-    return group as Group | undefined;
+    const stmt = db.prepare("SELECT id, name, owner_id as ownerId, join_code as joinCode FROM groups WHERE join_code = ?");
+    return stmt.get(joinCode) as Group | undefined;
   }
 
-  async getGroupsForUser(userId: string, role: string): Promise<Group[]> {
+  async getGroupsForUser(userId: string, role: string): Promise<GroupWithMembers[]> {
     if (role === "teacher") {
-      return await db.select().from(groups).where(eq(groups.ownerId, userId));
+      const stmt = db.prepare(`
+        SELECT 
+          g.id, g.name, g.owner_id as ownerId, g.join_code as joinCode,
+          u.name as ownerName,
+          (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as memberCount
+        FROM groups g
+        JOIN users u ON g.owner_id = u.id
+        WHERE g.owner_id = ?
+        ORDER BY g.name
+      `);
+      return stmt.all(userId) as GroupWithMembers[];
+    } else {
+      const stmt = db.prepare(`
+        SELECT 
+          g.id, g.name, g.owner_id as ownerId, g.join_code as joinCode,
+          u.name as ownerName,
+          (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as memberCount
+        FROM groups g
+        JOIN group_members gm ON g.id = gm.group_id
+        JOIN users u ON g.owner_id = u.id
+        WHERE gm.user_id = ?
+        ORDER BY g.name
+      `);
+      return stmt.all(userId) as GroupWithMembers[];
     }
-    const memberGroups = await db.select({ groupId: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, userId));
-    if (memberGroups.length === 0) return [];
-    return await db.select().from(groups).where(inArray(groups.id, memberGroups.map(m => m.groupId)));
   }
 
-  async getGroupMembers(groupId: string): Promise<User[]> {
-    const memberIds = await db.select({ userId: groupMembers.userId }).from(groupMembers).where(eq(groupMembers.groupId, groupId));
-    const users_list: User[] = [];
-    for (const { userId } of memberIds) {
-      const user = await this.getUserById(userId);
-      if (user) users_list.push(user);
+  async deleteGroup(id: string): Promise<void> {
+    // Check if group has active members
+    const memberCount = db.prepare(
+      "SELECT COUNT(*) as count FROM group_members WHERE group_id = ?"
+    ).get(id) as { count: number };
+    
+    if (memberCount.count > 0) {
+      throw new Error("Cannot delete group with active members. Please remove all students first.");
     }
-    return users_list;
+    
+    // Check if group has submissions
+    const submissionCount = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s 
+      JOIN tasks t ON s.task_id = t.id 
+      WHERE t.group_id = ?
+    `).get(id) as { count: number };
+    
+    if (submissionCount.count > 0) {
+      throw new Error("Cannot delete group with student submissions. Please contact administrator.");
+    }
+    
+    // Set NULL for foreign keys to preserve data (SET NULL instead of CASCADE DELETE)
+    db.prepare("UPDATE announcements SET group_id = NULL WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM group_members WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM tasks WHERE group_id = ?").run(id);
+    db.prepare("DELETE FROM groups WHERE id = ?").run(id);
   }
 
-  async isMemberOfGroup(groupId: string, userId: string): Promise<boolean> {
-    const [member] = await db.select().from(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId))).limit(1);
-    return !!member;
-  }
-
-  async addMemberToGroup(groupId: string, userId: string): Promise<void> {
-    if (!(await this.isMemberOfGroup(groupId, userId))) {
-      await db.insert(groupMembers).values({ id: randomUUID(), groupId, userId });
-    }
+  async addMemberToGroup(groupId: string, userId: string): Promise<GroupMember> {
+    const id = randomUUID();
+    const stmt = db.prepare(`
+      INSERT INTO group_members (id, group_id, user_id)
+      VALUES (?, ?, ?)
+    `);
+    stmt.run(id, groupId, userId);
+    return { id, groupId, userId };
   }
 
   async removeMemberFromGroup(groupId: string, userId: string): Promise<void> {
-    await db.delete(groupMembers).where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    // Delete all submissions by this student for tasks in this group
+    db.prepare(`
+      DELETE FROM submissions 
+      WHERE student_id = ? AND task_id IN (
+        SELECT id FROM tasks WHERE group_id = ?
+      )
+    `).run(userId, groupId);
+    
+    // Remove student from group
+    db.prepare("DELETE FROM group_members WHERE group_id = ? AND user_id = ?").run(groupId, userId);
   }
 
-  async deleteGroup(groupId: string): Promise<void> {
-    await db.delete(groups).where(eq(groups.id, groupId));
+  async getGroupMembers(groupId: string): Promise<{ id: string; userId: string; name: string; email: string }[]> {
+    const stmt = db.prepare(`
+      SELECT gm.id, gm.user_id as userId, u.name, u.email
+      FROM group_members gm
+      JOIN users u ON gm.user_id = u.id
+      WHERE gm.group_id = ?
+      ORDER BY u.name
+    `);
+    return stmt.all(groupId) as { id: string; userId: string; name: string; email: string }[];
   }
 
-  async createTask(groupId: string, data: InsertTextTask, fileUrl?: string): Promise<Task> {
-    const [task] = await db.insert(tasks).values({
-      id: randomUUID(),
-      groupId: data.groupId,
-      title: data.title,
-      description: data.description,
-      taskType: data.taskType,
-      dueDate: data.dueDate,
+  async isMemberOfGroup(groupId: string, userId: string): Promise<boolean> {
+    const stmt = db.prepare("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?");
+    const result = stmt.get(groupId, userId);
+    return !!result;
+  }
+
+  async createTask(taskData: InsertTask, fileUrl?: string): Promise<Task> {
+    const id = randomUUID();
+    const stmt = db.prepare(`
+      INSERT INTO tasks (id, group_id, title, description, due_date, file_url)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    stmt.run(id, taskData.groupId, taskData.title, taskData.description, taskData.dueDate, fileUrl || null);
+    
+    return {
+      id,
+      groupId: taskData.groupId,
+      title: taskData.title,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
       fileUrl: fileUrl || null,
-    }).returning();
-    return task as Task;
+    };
   }
 
   async getTaskById(id: string): Promise<Task | undefined> {
-    const [task] = await db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
-    return task as Task | undefined;
+    const stmt = db.prepare(`
+      SELECT id, group_id as groupId, title, description, due_date as dueDate, file_url as fileUrl
+      FROM tasks WHERE id = ?
+    `);
+    return stmt.get(id) as Task | undefined;
   }
 
-  async getTasksForGroup(groupId: string): Promise<Task[]> {
-    return await db.select().from(tasks).where(eq(tasks.groupId, groupId));
+  async getTasksForGroup(groupId: string, userId: string, role: string): Promise<TaskWithSubmissionStatus[]> {
+    if (role === "teacher") {
+      const stmt = db.prepare(`
+        SELECT 
+          t.id, t.group_id as groupId, t.title, t.description, t.due_date as dueDate, t.file_url as fileUrl,
+          (SELECT COUNT(*) FROM submissions WHERE task_id = t.id) as submissionCount,
+          (SELECT COUNT(*) FROM group_members WHERE group_id = t.group_id) as totalStudents
+        FROM tasks t
+        WHERE t.group_id = ?
+        ORDER BY t.due_date ASC
+      `);
+      return stmt.all(groupId) as TaskWithSubmissionStatus[];
+    } else {
+      const stmt = db.prepare(`
+        SELECT 
+          t.id, t.group_id as groupId, t.title, t.description, t.due_date as dueDate, t.file_url as fileUrl,
+          CASE 
+            WHEN s.score IS NOT NULL THEN 'graded'
+            WHEN s.id IS NOT NULL THEN 'submitted'
+            ELSE 'not_submitted'
+          END as submissionStatus,
+          s.score
+        FROM tasks t
+        LEFT JOIN submissions s ON t.id = s.task_id AND s.student_id = ?
+        WHERE t.group_id = ?
+        ORDER BY t.due_date ASC
+      `);
+      return stmt.all(userId, groupId) as TaskWithSubmissionStatus[];
+    }
   }
 
-  async getTasksForStudent(studentId: string): Promise<Task[]> {
-    const memberGroups = await db.select({ groupId: groupMembers.groupId }).from(groupMembers).where(eq(groupMembers.userId, studentId));
-    if (memberGroups.length === 0) return [];
-    return await db.select().from(tasks).where(inArray(tasks.groupId, memberGroups.map(m => m.groupId)));
+  async updateTask(id: string, taskData: UpdateTask, fileUrl?: string | null): Promise<Task> {
+    const current = await this.getTaskById(id);
+    if (!current) throw new Error("Task not found");
+
+    const newTitle = taskData.title ?? current.title;
+    const newDescription = taskData.description ?? current.description;
+    const newDueDate = taskData.dueDate ?? current.dueDate;
+    const newFileUrl = fileUrl === undefined ? current.fileUrl : fileUrl;
+
+    const stmt = db.prepare(`
+      UPDATE tasks SET title = ?, description = ?, due_date = ?, file_url = ?
+      WHERE id = ?
+    `);
+    stmt.run(newTitle, newDescription, newDueDate, newFileUrl, id);
+
+    return {
+      id,
+      groupId: current.groupId,
+      title: newTitle,
+      description: newDescription,
+      dueDate: newDueDate,
+      fileUrl: newFileUrl,
+    };
   }
 
   async deleteTask(id: string): Promise<void> {
-    await db.delete(tasks).where(eq(tasks.id, id));
+    // Check if task has submissions
+    const submissionCount = db.prepare(
+      "SELECT COUNT(*) as count FROM submissions WHERE task_id = ?"
+    ).get(id) as { count: number };
+    
+    if (submissionCount.count > 0) {
+      throw new Error("Cannot delete task with student submissions. Please contact administrator.");
+    }
+    
+    // Delete task (no submissions to preserve)
+    db.prepare("DELETE FROM tasks WHERE id = ?").run(id);
   }
 
-  async createSubmission(data: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission> {
-    const [submission] = await db.insert(submissions).values({
-      id: randomUUID(),
-      taskId: data.taskId,
+  async createSubmission(submissionData: InsertSubmission, studentId: string, fileUrl?: string): Promise<Submission> {
+    const id = randomUUID();
+    const submittedAt = new Date().toISOString();
+    
+    const stmt = db.prepare(`
+      INSERT INTO submissions (id, task_id, student_id, text_content, file_url, submitted_at, score)
+      VALUES (?, ?, ?, ?, ?, ?, NULL)
+    `);
+    stmt.run(id, submissionData.taskId, studentId, submissionData.textContent || null, fileUrl || null, submittedAt);
+    
+    return {
+      id,
+      taskId: submissionData.taskId,
       studentId,
-      textContent: data.textContent || null,
+      textContent: submissionData.textContent || null,
       fileUrl: fileUrl || null,
-      submittedAt: new Date().toISOString(),
+      submittedAt,
       score: null,
-    }).returning();
-    return submission as Submission;
-  }
-
-  async getSubmissionForTask(taskId: string, studentId: string): Promise<Submission | undefined> {
-    const [submission] = await db.select().from(submissions).where(and(eq(submissions.taskId, taskId), eq(submissions.studentId, studentId))).limit(1);
-    return submission as Submission | undefined;
+    };
   }
 
   async getSubmissionById(id: string): Promise<Submission | undefined> {
-    const [submission] = await db.select().from(submissions).where(eq(submissions.id, id)).limit(1);
-    return submission as Submission | undefined;
+    const stmt = db.prepare(`
+      SELECT id, task_id as taskId, student_id as studentId, text_content as textContent,
+             file_url as fileUrl, submitted_at as submittedAt, score
+      FROM submissions WHERE id = ?
+    `);
+    return stmt.get(id) as Submission | undefined;
   }
 
-  async getSubmissionsForTask(taskId: string): Promise<Submission[]> {
-    return await db.select().from(submissions).where(eq(submissions.taskId, taskId));
+  async getSubmissionForTask(taskId: string, studentId: string): Promise<Submission | undefined> {
+    const stmt = db.prepare(`
+      SELECT id, task_id as taskId, student_id as studentId, text_content as textContent,
+             file_url as fileUrl, submitted_at as submittedAt, score
+      FROM submissions WHERE task_id = ? AND student_id = ?
+    `);
+    return stmt.get(taskId, studentId) as Submission | undefined;
   }
 
-  async getSubmissionsForGroup(groupId: string): Promise<Submission[]> {
-    const groupTasks = await this.getTasksForGroup(groupId);
-    if (groupTasks.length === 0) return [];
-    return await db.select().from(submissions).where(inArray(submissions.taskId, groupTasks.map(t => t.id)));
+  async getSubmissionsForTask(taskId: string): Promise<SubmissionWithStudent[]> {
+    const stmt = db.prepare(`
+      SELECT s.id, s.task_id as taskId, s.student_id as studentId, s.text_content as textContent,
+             s.file_url as fileUrl, s.submitted_at as submittedAt, s.score,
+             u.name as studentName, u.email as studentEmail
+      FROM submissions s
+      JOIN users u ON s.student_id = u.id
+      WHERE s.task_id = ?
+      ORDER BY s.submitted_at DESC
+    `);
+    return stmt.all(taskId) as SubmissionWithStudent[];
   }
 
-  async getAllSubmissionsForTeacher(teacherId: string): Promise<Submission[]> {
-    const teacherGroups = await db.select().from(groups).where(eq(groups.ownerId, teacherId));
-    if (teacherGroups.length === 0) return [];
-    const groupTasks = await db.select().from(tasks).where(inArray(tasks.groupId, teacherGroups.map(g => g.id)));
-    if (groupTasks.length === 0) return [];
-    return await db.select().from(submissions).where(inArray(submissions.taskId, groupTasks.map(t => t.id)));
+  async getAllSubmissionsForTeacher(teacherId: string): Promise<(SubmissionWithStudent & { taskTitle: string; groupName: string; taskId: string })[]> {
+    const stmt = db.prepare(`
+      SELECT s.id, s.task_id as taskId, s.student_id as studentId, s.text_content as textContent,
+             s.file_url as fileUrl, s.submitted_at as submittedAt, s.score,
+             u.name as studentName, u.email as studentEmail,
+             t.title as taskTitle, t.id as taskId,
+             g.name as groupName
+      FROM submissions s
+      JOIN users u ON s.student_id = u.id
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+      ORDER BY s.submitted_at DESC
+    `);
+    return stmt.all(teacherId) as (SubmissionWithStudent & { taskTitle: string; groupName: string; taskId: string })[];
   }
 
-  async updateSubmissionScore(submissionId: string, score: number): Promise<Submission> {
-    await db.update(submissions).set({ score }).where(eq(submissions.id, submissionId));
-    return (await this.getSubmissionById(submissionId))!;
-  }
-
-  async createAnnouncement(data: InsertAnnouncement, teacherId: string): Promise<Announcement> {
-    const [announcement] = await db.insert(announcements).values({
-      id: randomUUID(),
-      groupId: data.groupId,
-      teacherId,
-      message: data.message,
-      createdAt: new Date().toISOString(),
-    }).returning();
-    return announcement as Announcement;
-  }
-
-  async getAnnouncementsForGroup(groupId: string): Promise<Announcement[]> {
-    return await db.select().from(announcements).where(eq(announcements.groupId, groupId));
-  }
-
-  async getAnalyticsForTeacher(teacherId: string): Promise<any> {
-    const teacherGroups = await db.select().from(groups).where(eq(groups.ownerId, teacherId));
-    if (teacherGroups.length === 0) return { totalGroups: 0, totalTasks: 0, totalSubmissions: 0, averageScore: 0, submissionRate: 0, groupStats: [] };
-
-    const groupIds = teacherGroups.map(g => g.id);
-    const groupTasks = await db.select().from(tasks).where(inArray(tasks.groupId, groupIds));
-    if (groupTasks.length === 0) return { totalGroups: teacherGroups.length, totalTasks: 0, totalSubmissions: 0, averageScore: 0, submissionRate: 0, groupStats: [] };
-
-    const taskIds = groupTasks.map(t => t.id);
-    const allSubs = await db.select().from(submissions).where(inArray(submissions.taskId, taskIds));
+  async updateSubmissionScore(id: string, score: number): Promise<Submission> {
+    const stmt = db.prepare("UPDATE submissions SET score = ? WHERE id = ?");
+    stmt.run(score, id);
     
-    let totalScore = 0, gradedCount = 0;
-    allSubs.forEach(sub => {
-      if (sub.score !== null) { totalScore += sub.score; gradedCount++; }
-    });
+    const submission = await this.getSubmissionById(id);
+    if (!submission) throw new Error("Submission not found");
+    return submission;
+  }
 
-    const groupStats = teacherGroups.map(group => {
-      const groupTaskList = groupTasks.filter(t => t.groupId === group.id);
-      const groupTaskIds = groupTaskList.map(t => t.id);
-      let groupScore = 0, groupGradedCount = 0, groupSubmissions = 0;
-      
-      if (groupTaskIds.length > 0) {
-        const groupSubs = allSubs.filter(s => groupTaskIds.includes(s.taskId));
-        groupSubmissions = groupSubs.length;
-        groupSubs.forEach(sub => {
-          if (sub.score !== null) { groupScore += sub.score; groupGradedCount++; }
-        });
-      }
+  async getTeacherStats(teacherId: string): Promise<{ pendingSubmissions: number; totalTasks: number }> {
+    const pendingStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ? AND s.score IS NULL
+    `);
+    const pending = pendingStmt.get(teacherId) as { count: number };
 
-      return {
-        groupName: group.name,
-        submissionRate: groupTaskList.length > 0 ? Math.round((groupSubmissions / (groupTaskList.length * 3)) * 100) : 0,
-        averageScore: groupGradedCount > 0 ? Math.round(groupScore / groupGradedCount) : 0,
-        taskCount: groupTaskList.length,
-      };
-    });
+    const tasksStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+    `);
+    const tasks = tasksStmt.get(teacherId) as { count: number };
 
     return {
-      totalGroups: teacherGroups.length,
-      totalTasks: groupTasks.length,
-      totalSubmissions: allSubs.length,
-      averageScore: gradedCount > 0 ? Math.round(totalScore / gradedCount) : 0,
-      submissionRate: groupTasks.length > 0 ? Math.round((allSubs.length / (groupTasks.length * 3)) * 100) : 0,
-      groupStats,
+      pendingSubmissions: pending.count,
+      totalTasks: tasks.count,
     };
   }
 
-  async getAnalyticsForStudent(studentId: string): Promise<any> {
-    const tasks_list = await this.getTasksForStudent(studentId);
-    if (tasks_list.length === 0) return { totalGroups: 0, totalTasks: 0, totalSubmissions: 0, averageScore: 0, submissionRate: 0, groupStats: [] };
+  async getUpcomingTasksForStudent(studentId: string): Promise<TaskWithSubmissionStatus[]> {
+    const stmt = db.prepare(`
+      SELECT 
+        t.id, t.group_id as groupId, t.title, t.description, t.due_date as dueDate, t.file_url as fileUrl,
+        CASE 
+          WHEN s.score IS NOT NULL THEN 'graded'
+          WHEN s.id IS NOT NULL THEN 'submitted'
+          ELSE 'not_submitted'
+        END as submissionStatus,
+        s.score
+      FROM tasks t
+      JOIN group_members gm ON t.group_id = gm.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id AND s.student_id = ?
+      WHERE gm.user_id = ?
+      ORDER BY t.due_date ASC
+      LIMIT 10
+    `);
+    return stmt.all(studentId, studentId) as TaskWithSubmissionStatus[];
+  }
 
-    const taskIds = tasks_list.map(t => t.id);
-    const subs = await db.select().from(submissions).where(inArray(submissions.taskId, taskIds));
-    const studentSubs = subs.filter(s => s.studentId === studentId);
+  async getAllTasksForStudent(studentId: string): Promise<any[]> {
+    const stmt = db.prepare(`
+      SELECT 
+        t.id, t.group_id as groupId, t.title, t.description, t.due_date as dueDate, t.file_url as fileUrl,
+        g.name as groupName,
+        CASE 
+          WHEN s.score IS NOT NULL THEN 'graded'
+          WHEN s.id IS NOT NULL THEN 'submitted'
+          ELSE 'not_submitted'
+        END as submissionStatus,
+        s.score
+      FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id AND s.student_id = ?
+      WHERE gm.user_id = ?
+      ORDER BY t.due_date ASC
+    `);
+    return stmt.all(studentId, studentId) as any[];
+  }
 
-    let totalScore = 0, gradedCount = 0;
-    studentSubs.forEach(sub => {
-      if (sub.score !== null) { totalScore += sub.score; gradedCount++; }
-    });
+  async getAnalyticsForStudent(studentId: string): Promise<{
+    totalGroups: number;
+    totalTasks: number;
+    totalSubmissions: number;
+    averageScore: number;
+    submissionRate: number;
+    groupStats: { groupName: string; submissionRate: number; averageScore: number; taskCount: number }[];
+  }> {
+    const groupsStmt = db.prepare(`
+      SELECT COUNT(DISTINCT gm.group_id) as count FROM group_members gm
+      WHERE gm.user_id = ?
+    `);
+    const groups = groupsStmt.get(studentId) as { count: number };
+
+    const tasksStmt = db.prepare(`
+      SELECT COUNT(DISTINCT t.id) as count FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ?
+    `);
+    const tasks = tasksStmt.get(studentId) as { count: number };
+
+    const submissionsStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ? AND s.student_id = ?
+    `);
+    const submissions = submissionsStmt.get(studentId, studentId) as { count: number };
+
+    const avgScoreStmt = db.prepare(`
+      SELECT AVG(score) as avgScore FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ? AND s.student_id = ? AND s.score IS NOT NULL
+    `);
+    const avgScore = avgScoreStmt.get(studentId, studentId) as { avgScore: number | null };
+
+    const expectedSubmissionsStmt = db.prepare(`
+      SELECT COUNT(DISTINCT t.id) as count FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      JOIN group_members gm ON g.id = gm.group_id
+      WHERE gm.user_id = ?
+    `);
+    const expectedSubmissions = expectedSubmissionsStmt.get(studentId) as { count: number };
+
+    const groupStatsStmt = db.prepare(`
+      SELECT 
+        g.name as groupName,
+        COUNT(DISTINCT t.id) as taskCount,
+        SUM(CASE WHEN s.student_id = ? THEN 1 ELSE 0 END) as submittedCount,
+        COALESCE(AVG(CASE WHEN s.student_id = ? THEN s.score ELSE NULL END), 0) as avgScore
+      FROM groups g
+      LEFT JOIN group_members gm ON g.id = gm.group_id
+      LEFT JOIN tasks t ON g.id = t.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id
+      WHERE gm.user_id = ?
+      GROUP BY g.id, g.name
+    `);
+    const groupStats = groupStatsStmt.all(studentId, studentId, studentId) as any[];
 
     return {
-      totalGroups: 0,
-      totalTasks: tasks_list.length,
-      totalSubmissions: studentSubs.length,
-      averageScore: gradedCount > 0 ? Math.round(totalScore / gradedCount) : 0,
-      submissionRate: tasks_list.length > 0 ? Math.round((studentSubs.length / tasks_list.length) * 100) : 0,
-      groupStats: [],
+      totalGroups: groups.count,
+      totalTasks: tasks.count,
+      totalSubmissions: submissions.count,
+      averageScore: Math.round((avgScore.avgScore || 0) * 100) / 100,
+      submissionRate: expectedSubmissions.count > 0 ? Math.round((submissions.count / expectedSubmissions.count) * 100) : 0,
+      groupStats: groupStats.map((g) => ({
+        groupName: g.groupName,
+        submissionRate: g.taskCount > 0 ? Math.round((g.submittedCount / g.taskCount) * 100) : 0,
+        averageScore: Math.round(g.avgScore * 100) / 100,
+        taskCount: g.taskCount,
+      })),
     };
   }
 
-  async getTeacherStats(teacherId: string): Promise<any> {
-    const teacherGroups = await db.select().from(groups).where(eq(groups.ownerId, teacherId));
-    if (teacherGroups.length === 0) return { pendingSubmissions: 0, totalTasks: 0 };
+  async getAnalyticsForTeacher(teacherId: string): Promise<{
+    totalGroups: number;
+    totalTasks: number;
+    totalSubmissions: number;
+    averageScore: number;
+    submissionRate: number;
+    groupStats: { groupName: string; submissionRate: number; averageScore: number; taskCount: number }[];
+  }> {
+    const groupsStmt = db.prepare("SELECT COUNT(*) as count FROM groups WHERE owner_id = ?");
+    const groups = groupsStmt.get(teacherId) as { count: number };
 
-    const groupIds = teacherGroups.map(g => g.id);
-    const groupTasks = await db.select().from(tasks).where(inArray(tasks.groupId, groupIds));
-    if (groupTasks.length === 0) return { pendingSubmissions: 0, totalTasks: 0 };
+    const tasksStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM tasks t
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+    `);
+    const tasks = tasksStmt.get(teacherId) as { count: number };
 
-    const taskIds = groupTasks.map(t => t.id);
-    const allSubs = await db.select().from(submissions).where(inArray(submissions.taskId, taskIds));
-    
+    const submissionsStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ?
+    `);
+    const submissions = submissionsStmt.get(teacherId) as { count: number };
+
+    const avgScoreStmt = db.prepare(`
+      SELECT AVG(score) as avgScore FROM submissions s
+      JOIN tasks t ON s.task_id = t.id
+      JOIN groups g ON t.group_id = g.id
+      WHERE g.owner_id = ? AND s.score IS NOT NULL
+    `);
+    const avgScore = avgScoreStmt.get(teacherId) as { avgScore: number | null };
+
+    const expectedSubmissionsStmt = db.prepare(`
+      SELECT COUNT(*) as count FROM (
+        SELECT DISTINCT t.id, gm.user_id
+        FROM tasks t
+        JOIN groups g ON t.group_id = g.id
+        JOIN group_members gm ON g.id = gm.group_id
+        WHERE g.owner_id = ?
+      )
+    `);
+    const expectedSubmissions = expectedSubmissionsStmt.get(teacherId) as { count: number };
+
+    const groupStatsStmt = db.prepare(`
+      SELECT 
+        g.name as groupName,
+        COUNT(t.id) as taskCount,
+        COUNT(s.id) as submittedCount,
+        COALESCE(COUNT(DISTINCT CASE WHEN gm.user_id IS NOT NULL THEN gm.user_id END), 0) as studentCount,
+        COALESCE(AVG(s.score), 0) as avgScore
+      FROM groups g
+      LEFT JOIN group_members gm ON g.id = gm.group_id
+      LEFT JOIN tasks t ON g.id = t.group_id
+      LEFT JOIN submissions s ON t.id = s.task_id
+      WHERE g.owner_id = ?
+      GROUP BY g.id, g.name
+    `);
+    const groupStats = groupStatsStmt.all(teacherId) as any[];
+
     return {
-      pendingSubmissions: allSubs.filter(s => s.score === null).length,
-      totalTasks: groupTasks.length,
+      totalGroups: groups.count,
+      totalTasks: tasks.count,
+      totalSubmissions: submissions.count,
+      averageScore: Math.round((avgScore.avgScore || 0) * 100) / 100,
+      submissionRate: expectedSubmissions.count > 0 ? Math.round((submissions.count / expectedSubmissions.count) * 100) : 0,
+      groupStats: groupStats.map((g) => ({
+        groupName: g.groupName,
+        submissionRate: g.studentCount > 0 ? Math.round((g.submittedCount / (g.taskCount * g.studentCount)) * 100) : 0,
+        averageScore: Math.round(g.avgScore * 100) / 100,
+        taskCount: g.taskCount,
+      })),
     };
+  }
+
+
+  async getUnreadSubmissionCount(teacherId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM submissions s
+      WHERE s.task_id IN (
+        SELECT t.id FROM tasks t
+        WHERE t.group_id IN (
+          SELECT id FROM groups WHERE owner_id = ?
+        )
+      )
+      AND s.score IS NULL
+    `);
+
+    const result = stmt.get(teacherId) as { count: number };
+    return result.count;
+  }
+
+  async getUnreadTaskCount(studentId: string): Promise<number> {
+    const stmt = db.prepare(`
+      SELECT COUNT(*) as count FROM tasks t
+      WHERE t.group_id IN (
+        SELECT group_id FROM group_members WHERE user_id = ?
+      )
+      AND t.id NOT IN (
+        SELECT task_id FROM submissions WHERE student_id = ?
+      )
+    `);
+
+    const result = stmt.get(studentId, studentId) as { count: number };
+    return result.count;
   }
 }
 
-export const storage = new Storage();
+export const storage = new SQLiteStorage();
