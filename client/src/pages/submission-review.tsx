@@ -90,7 +90,8 @@ export default function SubmissionReview() {
     updateScoreMutation.mutate({ submissionId, score: parseInt(scoreValue) });
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name?: string) => {
+    if (!name) return "NA";
     return name
       .split(" ")
       .map((n) => n[0])
