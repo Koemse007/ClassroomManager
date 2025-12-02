@@ -3,7 +3,6 @@ import { useAuth } from "@/lib/auth";
 import type { SubmissionWithStudent, TaskWithSubmissionStatus } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DeadlineReminder } from "@/components/deadline-reminder";
 import {
   FileText,
   ClipboardList,
@@ -35,11 +34,6 @@ export default function TeacherDashboard() {
     enabled: !!token,
   });
 
-  const { data: upcomingTasks } = useQuery<TaskWithSubmissionStatus[]>({
-    queryKey: ["/api/tasks/upcoming"],
-    enabled: !!token,
-  });
-
   const { data: announcementData } = useQuery<{ unreadCount: number }>({
     queryKey: ["/api/announcements/unread/count"],
     enabled: !!token,
@@ -67,8 +61,6 @@ export default function TeacherDashboard() {
           </div>
           <p className="text-muted-foreground">Manage your classes and review submissions</p>
         </div>
-
-        {upcomingTasks && <DeadlineReminder tasks={upcomingTasks} title="Upcoming Deadlines" />}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-gradient-to-br from-card to-background border-primary/20 hover-elevate">

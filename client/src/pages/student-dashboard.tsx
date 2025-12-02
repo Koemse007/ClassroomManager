@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DeadlineReminder } from "@/components/deadline-reminder";
 import {
   Dialog,
   DialogContent,
@@ -43,11 +42,6 @@ export default function StudentDashboard() {
 
   const { data: groups, isLoading: groupsLoading } = useQuery<GroupWithMembers[]>({
     queryKey: ["/api/groups"],
-    enabled: !!token,
-  });
-
-  const { data: upcomingTasks, isLoading: tasksLoading } = useQuery<TaskWithSubmissionStatus[]>({
-    queryKey: ["/api/tasks/upcoming"],
     enabled: !!token,
   });
 
