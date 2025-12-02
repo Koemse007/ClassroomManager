@@ -126,7 +126,7 @@ export default function AllSubmissions() {
     return allGroups?.find((g) => g.name === groupName)?.id || "";
   };
 
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
     if (groupFilter === "all") {
       toast({
         title: "Select a group",
@@ -144,7 +144,35 @@ export default function AllSubmissions() {
       });
       return;
     }
-    window.location.href = `/api/analytics/export-csv/${groupId}`;
+    try {
+      const response = await fetch(`/api/analytics/export-csv/${groupId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to export CSV");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${groupFilter}-submissions.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast({
+        title: "Success",
+        description: "CSV exported successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message || "Could not export CSV",
+        variant: "destructive",
+      });
+    }
   };
 
   // Pagination logic
