@@ -83,8 +83,8 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary">
-            <GraduationCap className="h-6 w-6 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-md">
+            <img src="favicon.png" alt="Description" className="h-full w-full object-cover rounded-2xl" />
           </div>
           <div className="flex flex-col">
             <span className="text-base font-semibold">ClassRoom</span>

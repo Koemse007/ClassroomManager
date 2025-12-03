@@ -90,7 +90,7 @@ export default function AuthPage() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center pb-2">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-              <GraduationCap className="h-8 w-8 text-primary-foreground" />
+              <h1 className="text-white font-semibold">iTE</h1>
             </div>
             <CardTitle className="text-2xl font-semibold">
               {isLogin ? "Welcome back" : "Create an account"}
@@ -248,7 +248,7 @@ export default function AuthPage() {
         <div className="max-w-lg text-center">
           <div className="mb-8 flex justify-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary">
-              <GraduationCap className="h-12 w-12 text-primary-foreground" />
+              <img src="favicon.png" alt="Description" className="h-full w-full object-cover rounded-2xl" />
             </div>
           </div>
           <h2 className="text-3xl font-bold mb-4">
