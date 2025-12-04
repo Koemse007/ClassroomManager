@@ -1,5 +1,7 @@
 A Small Classroom Management System by Khuy Koemse
 
+My Teammates (Tep Rathna, Ngen Chanheng, Tey Sang, Nget Soriya, Cheng Chhunleang, Khuy Lyrothanak)
+
 Subject: Object-Oriented Analysis and Design (OOAD)
 
 🛠️ Programming Languages & Tools Used
