@@ -6,41 +6,41 @@ Subject: Object-Oriented Analysis and Design (OOAD)
 
 Programming Languages & Tools Used
 
-  HTML
+  - HTML
 
-  CSS
+  - CSS
 
-  JavaScript
+  - JavaScript
 
-  ExpressJS
+  - ExpressJS
 
-  SQLite
+  - SQLite
 
-  Local Storage
+  - Local Storage
 
-  GitHub
+  - GitHub
 
-  AI Tools (ChatGPT, etc.)
+  - AI Tools (ChatGPT, etc.)
 
 Project Features
 
-  Login System
+  - Login System
 
-  Dashboard
+  - Dashboard
 
-  My Groups
+  - My Groups
 
-  Review Submissions
+  - Review Submissions
 
-  Analytics
+  - Analytics
 
 How to run my project:
 
-  first: download and zip project. 
+  - first: download and zip project. 
   
-  second go to project folder then run " npm install" install all package libraries. 
+  - second: go to project folder then run " npm install" install all package libraries. 
   
-  third "run npm run dev" to start backend and fronted.
+  - third: "run npx run dev" to start backend and fronted.
 
 Good luck!
   
