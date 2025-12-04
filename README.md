@@ -33,4 +33,14 @@ Project Features
   Review Submissions
 
   Analytics
+
+How to run my project:
+
+  first: download and zip project. 
+  
+  second go to project folder then run " npm install" install all package libraries. 
+  
+  third "run npm run dev" to start backend and fronted.
+
+Good luck!
   
