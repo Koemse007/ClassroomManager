@@ -1,3 +1,25 @@
+A Small Classroom Management System by Khuy Koemse
+
+Subject: Object-Oriented Analysis and Design (OOAD)
+
+🛠️ Programming Languages & Tools Used
+
+HTML
+
+CSS
+
+JavaScript
+
+ExpressJS
+
+SQLite
+
+Local Storage
+
+GitHub
+
+AI Tools (ChatGPT, etc.)
+
 ✨ Project Features
 
 🔐 Login System
