@@ -4,7 +4,7 @@ My Teammates (Tep Rathna, Ngen Chanheng, Tey Sang, Nget Soriya, Cheng Chhunleang
 
 Subject: Object-Oriented Analysis and Design (OOAD)
 
-🛠️ Programming Languages & Tools Used
+Programming Languages & Tools Used
 
 HTML
 
@@ -22,15 +22,15 @@ GitHub
 
 AI Tools (ChatGPT, etc.)
 
-✨ Project Features
+Project Features
 
-🔐 Login System
+Login System
 
-🏠 Dashboard
+Dashboard
 
-👥 My Groups
+My Groups
 
-📤 Review Submissions
+Review Submissions
 
-📊 Analytics
+Analytics
   
